@@ -1,0 +1,479 @@
+{
+  "generatedAt": "2026-05-31T21:21:51.824Z",
+  "sourceWorkbook": "Planilha de cargas Rayza Alvarez_clean.xlsx",
+  "sourceCatalog": "Catálogo de exercícios.pdf",
+  "workouts": [
+    {
+      "id": "treino-a",
+      "name": "Treino A",
+      "subtitle": "Gluteo e pernas",
+      "accent": "#f09a36",
+      "exercises": [
+        {
+          "id": "cadeira-abdutora",
+          "name": "CADEIRA ABDUTORA",
+          "focus": "Gluteo medio",
+          "cue": "Empurre para fora sem perder o controle da volta e sem balancar o tronco.",
+          "seedSets": [
+            {
+              "load": "45",
+              "reps": "12"
+            },
+            {
+              "load": "50",
+              "reps": "12"
+            },
+            {
+              "load": "55",
+              "reps": "10.5"
+            }
+          ],
+          "videoUrl": "https://youtu.be/VpcT1v-079w",
+          "thumbnailUrl": "https://i.ytimg.com/vi/VpcT1v-079w/hqdefault.jpg",
+          "catalogLabel": "Cadeira abdutora",
+          "catalogPage": 26
+        },
+        {
+          "id": "elevacao-pelvica",
+          "name": "ELEVAÇÃO PELVICA",
+          "focus": "Gluteo maximo",
+          "cue": "Suba contraindo os gluteos, pause no topo e evite compensar com a lombar.",
+          "seedSets": [
+            {
+              "load": "52",
+              "reps": "12"
+            },
+            {
+              "load": "62",
+              "reps": "11"
+            }
+          ],
+          "videoUrl": "https://youtu.be/Zp26q4BY5HE",
+          "thumbnailUrl": "https://i.ytimg.com/vi/Zp26q4BY5HE/hqdefault.jpg",
+          "catalogLabel": "Elevação pélvica",
+          "catalogPage": 25
+        },
+        {
+          "id": "leg-press",
+          "name": "LEG PRESS",
+          "focus": "Quadriceps e gluteo",
+          "cue": "Desca controlando o joelho e empurre a plataforma sem tirar o quadril do banco.",
+          "seedSets": [
+            {
+              "load": "40",
+              "reps": "12"
+            },
+            {
+              "load": "50",
+              "reps": "10"
+            }
+          ],
+          "videoUrl": "https://youtu.be/fM2WvgirlLM",
+          "thumbnailUrl": "https://i.ytimg.com/vi/fM2WvgirlLM/hqdefault.jpg",
+          "catalogLabel": "Leg press",
+          "catalogPage": 21
+        },
+        {
+          "id": "cadeira-extensora",
+          "name": "CADEIRA EXTENSORA",
+          "focus": "Quadriceps",
+          "cue": "Estenda ate o topo, segure um instante e retorne sem soltar o peso.",
+          "seedSets": [
+            {
+              "load": "20",
+              "reps": "12"
+            },
+            {
+              "load": "20",
+              "reps": "12"
+            },
+            {
+              "load": "25",
+              "reps": "12"
+            }
+          ],
+          "videoUrl": "https://youtu.be/pJZXbaF-MCM",
+          "thumbnailUrl": "https://i.ytimg.com/vi/pJZXbaF-MCM/hqdefault.jpg",
+          "catalogLabel": "Cadeira extensora",
+          "catalogPage": 22
+        },
+        {
+          "id": "cadeira-flexora",
+          "name": "CADEIRA FLEXORA",
+          "focus": "Posterior de coxa",
+          "cue": "Puxe com o posterior e controle a descida para manter tensao o tempo inteiro.",
+          "seedSets": [
+            {
+              "load": "30",
+              "reps": "12"
+            },
+            {
+              "load": "30",
+              "reps": "12"
+            },
+            {
+              "load": "35",
+              "reps": "12"
+            }
+          ],
+          "videoUrl": "https://youtu.be/-EIXZD5AEuE",
+          "thumbnailUrl": "https://i.ytimg.com/vi/-EIXZD5AEuE/hqdefault.jpg",
+          "catalogLabel": "Cadeira ﬂexora",
+          "catalogPage": 24
+        }
+      ]
+    },
+    {
+      "id": "treino-b",
+      "name": "Treino B",
+      "subtitle": "Ombro, peito e costas",
+      "accent": "#e55d2d",
+      "exercises": [
+        {
+          "id": "elevacao-lateral-com-halter",
+          "name": "ELEVAÇÃO LATERAL C/H",
+          "focus": "Deltoide lateral",
+          "cue": "Suba os halteres ate a linha do ombro e desca sem embalo.",
+          "seedSets": [
+            {
+              "load": "4",
+              "reps": "12"
+            },
+            {
+              "load": "4",
+              "reps": "12"
+            },
+            {
+              "load": "5",
+              "reps": "11"
+            }
+          ],
+          "videoUrl": "https://youtu.be/qDAoUOmdbi4",
+          "thumbnailUrl": "https://i.ytimg.com/vi/qDAoUOmdbi4/hqdefault.jpg",
+          "catalogLabel": "Elevação lateral com halter",
+          "catalogPage": 13
+        },
+        {
+          "id": "supino-reto-maquina",
+          "name": "SUPINO RETO MÁQUINA",
+          "focus": "Peitoral",
+          "cue": "Mantenha as escapulas apoiadas e empurre sem projetar os ombros para frente.",
+          "seedSets": [
+            {
+              "load": "8",
+              "reps": "12"
+            },
+            {
+              "load": "8",
+              "reps": "12"
+            },
+            {
+              "load": "9",
+              "reps": "12"
+            }
+          ],
+          "videoUrl": "https://youtu.be/0CFOTfwP4CY",
+          "thumbnailUrl": "https://i.ytimg.com/vi/0CFOTfwP4CY/hqdefault.jpg",
+          "catalogLabel": "Supino reto máquina",
+          "catalogPage": 7
+        },
+        {
+          "id": "puxada-pronada-polia",
+          "name": "PUXADA PRONADA POLIA",
+          "focus": "Dorsal",
+          "cue": "Inicie puxando pelas costas e finalize com o cotovelo para baixo e para tras.",
+          "seedSets": [
+            {
+              "load": "20",
+              "reps": "12"
+            },
+            {
+              "load": "25",
+              "reps": "10"
+            }
+          ],
+          "videoUrl": "https://youtu.be/WjSVqshIaBo",
+          "thumbnailUrl": "https://i.ytimg.com/vi/WjSVqshIaBo/hqdefault.jpg",
+          "catalogLabel": "Puxada pronada polia",
+          "catalogPage": 10
+        },
+        {
+          "id": "remada-serrote",
+          "name": "REMADA SERROTE",
+          "focus": "Dorsal e romboides",
+          "cue": "Mantenha o tronco firme e puxe com o cotovelo colado ao corpo.",
+          "seedSets": [
+            {
+              "load": "10",
+              "reps": "12"
+            },
+            {
+              "load": "14",
+              "reps": "9"
+            }
+          ],
+          "videoUrl": "https://youtu.be/EUisRaNkCd4",
+          "thumbnailUrl": "https://i.ytimg.com/vi/EUisRaNkCd4/hqdefault.jpg",
+          "catalogLabel": "Remada serrote",
+          "catalogPage": 9
+        },
+        {
+          "id": "rosca-direta-polia",
+          "name": "ROSCA DIRETA POLIA",
+          "focus": "Biceps",
+          "cue": "Cotovelos fixos ao lado do corpo e subida sem usar impulso.",
+          "seedSets": [
+            {
+              "load": "5",
+              "reps": "12"
+            },
+            {
+              "load": "7",
+              "reps": "9"
+            }
+          ],
+          "videoUrl": "https://youtu.be/_ziU37WD50I",
+          "thumbnailUrl": "https://i.ytimg.com/vi/_ziU37WD50I/hqdefault.jpg",
+          "catalogLabel": "Rosca direta polia",
+          "catalogPage": 17
+        }
+      ]
+    },
+    {
+      "id": "treino-c",
+      "name": "Treino C",
+      "subtitle": "Gluteo e posterior",
+      "accent": "#f2c14e",
+      "exercises": [
+        {
+          "id": "cadeira-abdutora",
+          "name": "CADEIRA ABDUTORA",
+          "focus": "Gluteo medio",
+          "cue": "Empurre para fora sem perder o controle da volta e sem balancar o tronco.",
+          "seedSets": [
+            {
+              "load": "45",
+              "reps": "12"
+            },
+            {
+              "load": "50",
+              "reps": "12"
+            },
+            {
+              "load": "55",
+              "reps": "16"
+            }
+          ],
+          "videoUrl": "https://youtu.be/VpcT1v-079w",
+          "thumbnailUrl": "https://i.ytimg.com/vi/VpcT1v-079w/hqdefault.jpg",
+          "catalogLabel": "Cadeira abdutora",
+          "catalogPage": 26
+        },
+        {
+          "id": "elevacao-pelvica",
+          "name": "ELEVAÇÃO PELVICA",
+          "focus": "Gluteo maximo",
+          "cue": "Suba contraindo os gluteos, pause no topo e evite compensar com a lombar.",
+          "seedSets": [
+            {
+              "load": "62",
+              "reps": "12"
+            },
+            {
+              "load": "72",
+              "reps": "11"
+            }
+          ],
+          "videoUrl": "https://youtu.be/Zp26q4BY5HE",
+          "thumbnailUrl": "https://i.ytimg.com/vi/Zp26q4BY5HE/hqdefault.jpg",
+          "catalogLabel": "Elevação pélvica",
+          "catalogPage": 25
+        },
+        {
+          "id": "rdl",
+          "name": "RDL",
+          "focus": "Posterior e gluteo",
+          "cue": "Empurre o quadril para tras mantendo a coluna neutra e a carga proxima das pernas.",
+          "seedSets": [
+            {
+              "load": "40",
+              "reps": "12"
+            },
+            {
+              "load": "50",
+              "reps": "10"
+            }
+          ],
+          "videoUrl": "https://youtu.be/HCIAl9ro2p4?t=47",
+          "thumbnailUrl": "https://i.ytimg.com/vi/HCIAl9ro2p4/hqdefault.jpg",
+          "catalogLabel": "RDL",
+          "catalogPage": 23
+        },
+        {
+          "id": "mesa-flexora",
+          "name": "MESA FLEXORA",
+          "focus": "Posterior de coxa",
+          "cue": "Evite tirar o quadril do banco e controle a volta ate o fim do movimento.",
+          "seedSets": [
+            {
+              "load": "15",
+              "reps": "12"
+            },
+            {
+              "load": "15",
+              "reps": "12"
+            },
+            {
+              "load": "15",
+              "reps": "7"
+            }
+          ],
+          "videoUrl": "https://youtu.be/n5WDXD_mpVY?si=kuU-IzPmSNyFBeA2",
+          "thumbnailUrl": "https://i.ytimg.com/vi/n5WDXD_mpVY/hqdefault.jpg",
+          "catalogLabel": "Mesa ﬂexora",
+          "catalogPage": 24
+        },
+        {
+          "id": "cadeira-extensora",
+          "name": "CADEIRA EXTENSORA",
+          "focus": "Quadriceps",
+          "cue": "Estenda ate o topo, segure um instante e retorne sem soltar o peso.",
+          "seedSets": [
+            {
+              "load": "20",
+              "reps": "12"
+            },
+            {
+              "load": "20",
+              "reps": "12"
+            },
+            {
+              "load": "25",
+              "reps": "12"
+            }
+          ],
+          "videoUrl": "https://youtu.be/pJZXbaF-MCM",
+          "thumbnailUrl": "https://i.ytimg.com/vi/pJZXbaF-MCM/hqdefault.jpg",
+          "catalogLabel": "Cadeira extensora",
+          "catalogPage": 22
+        }
+      ]
+    },
+    {
+      "id": "treino-d",
+      "name": "Treino D",
+      "subtitle": "Ombro, costas e triceps",
+      "accent": "#c94f34",
+      "exercises": [
+        {
+          "id": "elevacao-lateral-com-halter",
+          "name": "ELEVAÇÃO LATERAL C/H",
+          "focus": "Deltoide lateral",
+          "cue": "Suba os halteres ate a linha do ombro e desca sem embalo.",
+          "seedSets": [
+            {
+              "load": "4",
+              "reps": "12"
+            },
+            {
+              "load": "4",
+              "reps": "12"
+            },
+            {
+              "load": "5",
+              "reps": "12"
+            }
+          ],
+          "videoUrl": "https://youtu.be/qDAoUOmdbi4",
+          "thumbnailUrl": "https://i.ytimg.com/vi/qDAoUOmdbi4/hqdefault.jpg",
+          "catalogLabel": "Elevação lateral com halter",
+          "catalogPage": 13
+        },
+        {
+          "id": "desenvolvimento-com-halter",
+          "name": "DESENVOLVIMENTO C/H",
+          "focus": "Ombro",
+          "cue": "Empurre acima da cabeca sem arquear a lombar e sem perder o controle.",
+          "seedSets": [
+            {
+              "load": "6",
+              "reps": "12"
+            },
+            {
+              "load": "6",
+              "reps": "12"
+            },
+            {
+              "load": "7",
+              "reps": "8"
+            }
+          ],
+          "videoUrl": "https://youtu.be/L-iQfHVeuVg",
+          "thumbnailUrl": "https://i.ytimg.com/vi/L-iQfHVeuVg/hqdefault.jpg",
+          "catalogLabel": "Desenvolvimento com halter",
+          "catalogPage": 13
+        },
+        {
+          "id": "puxada-neutra-polia",
+          "name": "PUXADA NEUTRA POLIA",
+          "focus": "Dorsal",
+          "cue": "Leve o cotovelo para baixo e para tras antes de devolver a barra.",
+          "seedSets": [
+            {
+              "load": "25",
+              "reps": "12"
+            },
+            {
+              "load": "30",
+              "reps": "10"
+            }
+          ],
+          "videoUrl": "https://youtu.be/dgCYN_JBk44",
+          "thumbnailUrl": "https://i.ytimg.com/vi/dgCYN_JBk44/hqdefault.jpg",
+          "catalogLabel": "Puxada neutra polia",
+          "catalogPage": 10
+        },
+        {
+          "id": "remada-pronada-maquina",
+          "name": "REMADA PRONADA MÁQUINA",
+          "focus": "Dorsal e meio das costas",
+          "cue": "Puxe aproximando as escapulas e evite jogar o tronco para tras.",
+          "seedSets": [
+            {
+              "load": "30",
+              "reps": "12"
+            },
+            {
+              "load": "34",
+              "reps": "8"
+            }
+          ],
+          "videoUrl": "https://youtu.be/ahBaYwptV-Q",
+          "thumbnailUrl": "https://i.ytimg.com/vi/ahBaYwptV-Q/hqdefault.jpg",
+          "catalogLabel": "Remada pronada máquina",
+          "catalogPage": 10
+        },
+        {
+          "id": "triceps-polia",
+          "name": "TRICEPS POLIA",
+          "focus": "Triceps",
+          "cue": "Estenda os cotovelos sem abrir os bracos e controle a volta.",
+          "seedSets": [
+            {
+              "load": "7",
+              "reps": "12"
+            },
+            {
+              "load": "10",
+              "reps": "5"
+            }
+          ],
+          "videoUrl": "https://youtu.be/lr_BEvE3iBQ",
+          "thumbnailUrl": "https://i.ytimg.com/vi/lr_BEvE3iBQ/hqdefault.jpg",
+          "catalogLabel": "Tríceps polia barra",
+          "catalogPage": 19
+        }
+      ]
+    }
+  ]
+}
