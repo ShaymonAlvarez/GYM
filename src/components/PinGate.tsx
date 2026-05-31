@@ -12,11 +12,8 @@ function PinGate({ pinValue, errorMessage, onPinChange, onSubmit }: PinGateProps
   return (
     <main className="app-shell pin-screen">
       <section className="pin-card">
-        <p className="eyebrow">{APP_NAME}</p>
-        <h1>Abra a ficha sem depender da planilha.</h1>
-        <p className="lead">
-          Os dados ficam no aparelho, funcionam offline e podem ser exportados para backup.
-        </p>
+        <p className="pin-brand">{APP_NAME}</p>
+        <h1>Digite o PIN</h1>
 
         <form className="pin-form" onSubmit={onSubmit}>
           <label className="field field--pin">
@@ -26,7 +23,7 @@ function PinGate({ pinValue, errorMessage, onPinChange, onSubmit }: PinGateProps
               className="pin-input"
               inputMode="numeric"
               maxLength={8}
-              placeholder="Digite o PIN"
+              placeholder="PIN"
               type="password"
               value={pinValue}
               onChange={(event) => onPinChange(event.target.value.replace(/\D/g, ''))}

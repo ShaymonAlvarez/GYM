@@ -1,14 +1,27 @@
+export type SetType = 'orange' | 'red';
+
 export type SetEntry = {
+  slotIndex: number;
+  type: SetType;
   load: string;
   reps: string;
+};
+
+export type ExerciseSummary = {
+  totalLoad: number | null;
+  averageReps: number | null;
+  setCount: number;
 };
 
 export type ExerciseTemplate = {
   id: string;
   name: string;
+  rowNumber: number;
   focus: string;
   cue: string;
-  setCount: number;
+  orangeSetCount: number;
+  redSetCount: number;
+  activeSlotIndices: number[];
   videoUrl?: string;
   thumbnailUrl?: string;
   catalogLabel?: string;
@@ -26,6 +39,7 @@ export type WorkoutTemplate = {
 export type ExerciseLog = {
   exerciseId: string;
   sets: SetEntry[];
+  summary: ExerciseSummary;
 };
 
 export type WorkoutLog = {
@@ -34,27 +48,60 @@ export type WorkoutLog = {
 };
 
 export type WeekLog = {
-  id: string;
+  index: number;
   label: string;
-  createdAt: string;
   workoutLogs: WorkoutLog[];
-};
-
-export type ExerciseCustomization = {
-  note?: string;
-  imageDataUrl?: string;
 };
 
 export type AppState = {
   templates: WorkoutTemplate[];
-  customizations: Record<string, ExerciseCustomization>;
   weeks: WeekLog[];
-  activeWeekId: string;
+  activeWeekIndex: number;
   activeWorkoutId: string;
 };
 
-export type SummaryMetrics = {
-  totalLoad: number;
-  averageReps: number;
-  setCount: number;
+export type SummaryMetrics = ExerciseSummary;
+
+export type SheetCellStyle = {
+  fillColor: string | null;
+  fontColor: string | null;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  fontSize: number | string;
+  fontFamily: string;
+  horizontalAlignment: string;
+  verticalAlignment: string;
+  wrapText: boolean;
+  leftBorderStyle: string | null;
+  rightBorderStyle: string | null;
+  topBorderStyle: string | null;
+  bottomBorderStyle: string | null;
+  leftBorderColor: string | null;
+  rightBorderColor: string | null;
+  topBorderColor: string | null;
+  bottomBorderColor: string | null;
+};
+
+export type SheetLayoutCell = {
+  display: string;
+  style: SheetCellStyle;
+};
+
+export type SheetLayoutMerge = {
+  startRow: number;
+  endRow: number;
+  startColumn: number;
+  endColumn: number;
+};
+
+export type SheetLayout = {
+  startRow: number;
+  endRow: number;
+  startColumn: number;
+  endColumn: number;
+  rowHeights: Array<number | string>;
+  columnWidths: Array<number | string>;
+  merges: SheetLayoutMerge[];
+  cells: Record<string, SheetLayoutCell>;
 };

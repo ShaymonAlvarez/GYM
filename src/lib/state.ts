@@ -1,10 +1,13 @@
-import type { AppState, ExerciseLog, SetEntry, SummaryMetrics, WeekLog, WorkoutLog, WorkoutTemplate } from '../types';
-
-type BackupPayload = {
-  version: 1;
-  exportedAt: string;
-  state: AppState;
-};
+import type {
+  AppState,
+  ExerciseLog,
+  ExerciseSummary,
+  SetEntry,
+  SummaryMetrics,
+  WeekLog,
+  WorkoutLog,
+  WorkoutTemplate
+} from '../types';
 
 const parseNumber = (value: string): number | null => {
   const normalized = value.replace(',', '.').trim();
@@ -18,6 +21,18 @@ const parseNumber = (value: string): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const mergeSummary = (summary: SummaryMetrics, next: SummaryMetrics): SummaryMetrics => {
+  if (next.totalLoad === null || next.averageReps === null || next.setCount === 0) {
+    return summary;
+  }
+
+  return {
+    totalLoad: (summary.totalLoad ?? 0) + next.totalLoad,
+    averageReps: (summary.averageReps ?? 0) + next.averageReps * next.setCount,
+    setCount: summary.setCount + next.setCount
+  };
+};
+
 export const sanitizeNumericInput = (value: string): string => {
   const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
   const parts = normalized.split('.');
@@ -29,140 +44,147 @@ export const sanitizeNumericInput = (value: string): string => {
   return `${parts[0]}.${parts.slice(1).join('')}`;
 };
 
-export const createEmptySets = (setCount: number): SetEntry[] =>
-  Array.from({ length: setCount }, () => ({ load: '', reps: '' }));
-
-export const cloneWeek = (week: WeekLog, label: string): WeekLog => ({
-  ...structuredClone(week),
-  id: crypto.randomUUID(),
-  label,
-  createdAt: new Date().toISOString()
+export const createSummary = (
+  totalLoad: number | null,
+  averageReps: number | null,
+  setCount: number
+): ExerciseSummary => ({
+  totalLoad,
+  averageReps,
+  setCount
 });
 
-export const nextWeekLabel = (weeks: WeekLog[]): string => {
-  const highestIndex = weeks.reduce((highest, week) => {
-    const match = week.label.match(/(\d+)/);
-    const numericLabel = match ? Number(match[1]) : 0;
+export const createEmptySetEntries = (
+  template: WorkoutTemplate['exercises'][number],
+  initialValues?: Record<number, { load: string; reps: string }>
+): SetEntry[] =>
+  template.activeSlotIndices.map((slotIndex, activeIndex) => ({
+    slotIndex,
+    type: activeIndex < template.orangeSetCount ? 'orange' : 'red',
+    load: initialValues?.[slotIndex]?.load ?? '',
+    reps: initialValues?.[slotIndex]?.reps ?? ''
+  }));
 
-    return Number.isFinite(numericLabel) ? Math.max(highest, numericLabel) : highest;
-  }, 0);
-
-  return `Semana ${highestIndex + 1}`;
-};
-
-const accumulateSummary = (summary: SummaryMetrics, setEntry: SetEntry): SummaryMetrics => {
-  const load = parseNumber(setEntry.load);
-  const reps = parseNumber(setEntry.reps);
-  const nextSummary = { ...summary };
-
-  if (load !== null && reps !== null) {
-    nextSummary.totalLoad += load * reps;
-  }
-
-  if (reps !== null) {
-    nextSummary.averageReps += reps;
-    nextSummary.setCount += 1;
-  }
-
-  return nextSummary;
-};
-
-export const getExerciseSummary = (exerciseLog: ExerciseLog): SummaryMetrics => {
-  const rawSummary = exerciseLog.sets.reduce(accumulateSummary, {
-    totalLoad: 0,
-    averageReps: 0,
-    setCount: 0
-  });
-
-  return {
-    totalLoad: rawSummary.totalLoad,
-    averageReps: rawSummary.setCount > 0 ? rawSummary.averageReps / rawSummary.setCount : 0,
-    setCount: rawSummary.setCount
-  };
-};
-
-export const getWorkoutSummary = (workoutLog: WorkoutLog): SummaryMetrics => {
-  const combined = workoutLog.exerciseLogs.reduce(
-    (summary, exerciseLog) => {
-      const next = getExerciseSummary(exerciseLog);
+export const calculateSummaryFromSets = (exerciseLog: Pick<ExerciseLog, 'sets'>): SummaryMetrics => {
+  const rawSummary = exerciseLog.sets.reduce<SummaryMetrics>(
+    (summary, setEntry) => {
+      const load = parseNumber(setEntry.load);
+      const reps = parseNumber(setEntry.reps);
 
       return {
-        totalLoad: summary.totalLoad + next.totalLoad,
-        averageReps: summary.averageReps + next.averageReps * next.setCount,
-        setCount: summary.setCount + next.setCount
+        totalLoad: load !== null && reps !== null ? (summary.totalLoad ?? 0) + load * reps : summary.totalLoad,
+        averageReps: reps !== null ? (summary.averageReps ?? 0) + reps : summary.averageReps,
+        setCount: reps !== null ? summary.setCount + 1 : summary.setCount
       };
     },
     {
-      totalLoad: 0,
-      averageReps: 0,
+      totalLoad: null,
+      averageReps: null,
       setCount: 0
     }
   );
 
+  if (!rawSummary.setCount) {
+    return {
+      totalLoad: null,
+      averageReps: null,
+      setCount: 0
+    };
+  }
+
+  return {
+    totalLoad: rawSummary.totalLoad,
+    averageReps: rawSummary.averageReps !== null ? rawSummary.averageReps / rawSummary.setCount : null,
+    setCount: rawSummary.setCount
+  };
+};
+
+export const getExerciseSummary = (exerciseLog: ExerciseLog): SummaryMetrics => exerciseLog.summary;
+
+export const getWorkoutSummary = (workoutLog: WorkoutLog): SummaryMetrics => {
+  const combined = workoutLog.exerciseLogs.reduce<SummaryMetrics>(
+    (summary, exerciseLog) => mergeSummary(summary, getExerciseSummary(exerciseLog)),
+    {
+      totalLoad: null,
+      averageReps: null,
+      setCount: 0
+    }
+  );
+
+  if (!combined.setCount) {
+    return {
+      totalLoad: null,
+      averageReps: null,
+      setCount: 0
+    };
+  }
+
   return {
     totalLoad: combined.totalLoad,
-    averageReps: combined.setCount > 0 ? combined.averageReps / combined.setCount : 0,
+    averageReps: combined.averageReps !== null ? combined.averageReps / combined.setCount : null,
     setCount: combined.setCount
   };
 };
 
 export const getWeekSummary = (week: WeekLog): SummaryMetrics => {
-  const combined = week.workoutLogs.reduce(
-    (summary, workoutLog) => {
-      const next = getWorkoutSummary(workoutLog);
-
-      return {
-        totalLoad: summary.totalLoad + next.totalLoad,
-        averageReps: summary.averageReps + next.averageReps * next.setCount,
-        setCount: summary.setCount + next.setCount
-      };
-    },
+  const combined = week.workoutLogs.reduce<SummaryMetrics>(
+    (summary, workoutLog) => mergeSummary(summary, getWorkoutSummary(workoutLog)),
     {
-      totalLoad: 0,
-      averageReps: 0,
+      totalLoad: null,
+      averageReps: null,
       setCount: 0
     }
   );
 
+  if (!combined.setCount) {
+    return {
+      totalLoad: null,
+      averageReps: null,
+      setCount: 0
+    };
+  }
+
   return {
     totalLoad: combined.totalLoad,
-    averageReps: combined.setCount > 0 ? combined.averageReps / combined.setCount : 0,
+    averageReps: combined.averageReps !== null ? combined.averageReps / combined.setCount : null,
     setCount: combined.setCount
   };
 };
 
-export const formatMetric = (value: number, maximumFractionDigits = 1): string =>
-  new Intl.NumberFormat('pt-BR', {
+export const formatMetric = (value: number | null, maximumFractionDigits = 1): string => {
+  if (value === null) {
+    return '—';
+  }
+
+  return new Intl.NumberFormat('pt-BR', {
     maximumFractionDigits,
     minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, maximumFractionDigits)
   }).format(value);
-
-export const formatDateLabel = (isoDate: string): string =>
-  new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'short'
-  }).format(new Date(isoDate));
-
-export const getDeltaTone = (
-  currentValue: number,
-  previousValue: number
-): 'positive' | 'negative' | 'neutral' => {
-  if (!previousValue || currentValue === previousValue) {
-    return 'neutral';
-  }
-
-  return currentValue > previousValue ? 'positive' : 'negative';
 };
 
-export const getDeltaLabel = (currentValue: number, previousValue: number): string => {
-  if (!previousValue) {
-    return 'sem base';
+export const formatWorkbookNumber = (value: number | null): string => {
+  if (value === null) {
+    return '';
   }
 
-  const ratio = ((currentValue - previousValue) / previousValue) * 100;
-  const prefix = ratio > 0 ? '+' : '';
+  return String(Number(value.toFixed(2))).replace(/\.00$/, '');
+};
 
-  return `${prefix}${formatMetric(ratio, 0)}%`;
+const looksLikeExerciseTemplate = (
+  value: unknown
+): value is WorkoutTemplate['exercises'][number] => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as WorkoutTemplate['exercises'][number];
+
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    typeof candidate.rowNumber === 'number' &&
+    Array.isArray(candidate.activeSlotIndices)
+  );
 };
 
 const looksLikeWorkoutTemplate = (value: unknown): value is WorkoutTemplate => {
@@ -172,7 +194,66 @@ const looksLikeWorkoutTemplate = (value: unknown): value is WorkoutTemplate => {
 
   const candidate = value as WorkoutTemplate;
 
-  return typeof candidate.id === 'string' && Array.isArray(candidate.exercises);
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    Array.isArray(candidate.exercises) &&
+    candidate.exercises.every(looksLikeExerciseTemplate)
+  );
+};
+
+const looksLikeSetEntry = (value: unknown): value is SetEntry => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as SetEntry;
+
+  return (
+    typeof candidate.slotIndex === 'number' &&
+    (candidate.type === 'orange' || candidate.type === 'red') &&
+    typeof candidate.load === 'string' &&
+    typeof candidate.reps === 'string'
+  );
+};
+
+const looksLikeSummary = (value: unknown): value is ExerciseSummary => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as ExerciseSummary;
+
+  return typeof candidate.setCount === 'number';
+};
+
+const looksLikeExerciseLog = (value: unknown): value is ExerciseLog => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as ExerciseLog;
+
+  return (
+    typeof candidate.exerciseId === 'string' &&
+    Array.isArray(candidate.sets) &&
+    candidate.sets.every(looksLikeSetEntry) &&
+    looksLikeSummary(candidate.summary)
+  );
+};
+
+const looksLikeWorkoutLog = (value: unknown): value is WorkoutLog => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as WorkoutLog;
+
+  return (
+    typeof candidate.workoutId === 'string' &&
+    Array.isArray(candidate.exerciseLogs) &&
+    candidate.exerciseLogs.every(looksLikeExerciseLog)
+  );
 };
 
 const looksLikeWeekLog = (value: unknown): value is WeekLog => {
@@ -182,10 +263,15 @@ const looksLikeWeekLog = (value: unknown): value is WeekLog => {
 
   const candidate = value as WeekLog;
 
-  return typeof candidate.id === 'string' && typeof candidate.label === 'string' && Array.isArray(candidate.workoutLogs);
+  return (
+    typeof candidate.index === 'number' &&
+    typeof candidate.label === 'string' &&
+    Array.isArray(candidate.workoutLogs) &&
+    candidate.workoutLogs.every(looksLikeWorkoutLog)
+  );
 };
 
-const looksLikeAppState = (value: unknown): value is AppState => {
+export const isAppState = (value: unknown): value is AppState => {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -197,46 +283,7 @@ const looksLikeAppState = (value: unknown): value is AppState => {
     candidate.templates.every(looksLikeWorkoutTemplate) &&
     Array.isArray(candidate.weeks) &&
     candidate.weeks.every(looksLikeWeekLog) &&
-    typeof candidate.activeWeekId === 'string' &&
+    typeof candidate.activeWeekIndex === 'number' &&
     typeof candidate.activeWorkoutId === 'string'
   );
-};
-
-export const normalizeImportedState = (state: AppState): AppState => {
-  const fallbackWeekId = state.weeks[0]?.id ?? '';
-  const fallbackWorkoutId = state.templates[0]?.id ?? '';
-
-  return {
-    ...state,
-    customizations:
-      state.customizations && !Array.isArray(state.customizations) ? state.customizations : {},
-    activeWeekId: state.weeks.some((week) => week.id === state.activeWeekId)
-      ? state.activeWeekId
-      : fallbackWeekId,
-    activeWorkoutId: state.templates.some((template) => template.id === state.activeWorkoutId)
-      ? state.activeWorkoutId
-      : fallbackWorkoutId
-  };
-};
-
-export const createBackupPayload = (state: AppState): BackupPayload => ({
-  version: 1,
-  exportedAt: new Date().toISOString(),
-  state
-});
-
-export const readImportedState = (value: unknown): AppState | null => {
-  if (looksLikeAppState(value)) {
-    return normalizeImportedState(value);
-  }
-
-  if (value && typeof value === 'object' && 'state' in value) {
-    const candidate = (value as BackupPayload).state;
-
-    if (looksLikeAppState(candidate)) {
-      return normalizeImportedState(candidate);
-    }
-  }
-
-  return null;
 };

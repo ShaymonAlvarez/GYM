@@ -1,33 +1,23 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PinGate from './components/PinGate';
+import WorkbookSheet from './components/WorkbookSheet';
 import { APP_NAME, SESSION_UNLOCK_KEY, STATIC_PIN } from './config';
 import { createSeedAppState } from './data/seedData';
+import sheetLayout from './data/sheetLayout.json';
 import { loadAppState, saveAppState } from './lib/db';
 import {
-  cloneWeek,
-  createBackupPayload,
-  createEmptySets,
-  formatDateLabel,
+  calculateSummaryFromSets,
+  createEmptySetEntries,
   formatMetric,
-  getDeltaLabel,
-  getDeltaTone,
-  getExerciseSummary,
   getWeekSummary,
   getWorkoutSummary,
-  nextWeekLabel,
-  readImportedState,
+  isAppState,
   sanitizeNumericInput
 } from './lib/state';
-import type { AppState } from './types';
+import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
+import type { AppState, SheetLayout } from './types';
 
-const fileToDataUrl = async (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
-    reader.readAsDataURL(file);
-  });
+const workbookLayout = sheetLayout as SheetLayout;
 
 function App() {
   const [appState, setAppState] = useState<AppState | null>(null);
@@ -35,7 +25,9 @@ function App() {
   const [pinValue, setPinValue] = useState('');
   const [pinError, setPinError] = useState('');
   const [flashMessage, setFlashMessage] = useState('');
-  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [isExportingWorkbook, setIsExportingWorkbook] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const pdfSheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,11 +39,11 @@ function App() {
         return;
       }
 
-      const nextState = savedState ?? createSeedAppState();
+      const nextState = savedState && isAppState(savedState) ? savedState : createSeedAppState();
 
       setAppState(nextState);
 
-      if (!savedState) {
+      if (!savedState || !isAppState(savedState)) {
         void saveAppState(nextState);
       }
     });
@@ -85,13 +77,21 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [flashMessage]);
 
+  const workbookCellValues = useMemo(
+    () => (appState ? buildSheetDisplayValues(appState, workbookLayout, appState.activeWeekIndex) : {}),
+    [appState]
+  );
+
+  const updateState = (updater: (currentState: AppState) => AppState) => {
+    setAppState((currentState) => (currentState ? updater(currentState) : currentState));
+  };
+
   if (!appState) {
     return (
       <main className="app-shell">
-        <section className="hero-card">
-          <p className="eyebrow">{APP_NAME}</p>
-          <h1>Carregando a ficha local...</h1>
-          <p className="lead">Preparando treinos, semana ativa e backup local.</p>
+        <section className="loading-card">
+          <p className="pin-brand">{APP_NAME}</p>
+          <h1>Carregando planilha...</h1>
         </section>
       </main>
     );
@@ -123,30 +123,22 @@ function App() {
     );
   }
 
-  const activeWeek = appState.weeks.find((week) => week.id === appState.activeWeekId) ?? appState.weeks[0];
+  const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
   const activeWorkout =
     appState.templates.find((workout) => workout.id === appState.activeWorkoutId) ?? appState.templates[0];
   const activeWorkoutLog =
     activeWeek.workoutLogs.find((workoutLog) => workoutLog.workoutId === activeWorkout.id) ??
     activeWeek.workoutLogs[0];
-  const activeWeekIndex = appState.weeks.findIndex((week) => week.id === activeWeek.id);
-  const previousWeek = activeWeekIndex > 0 ? appState.weeks[activeWeekIndex - 1] : null;
-  const previousWorkoutLog = previousWeek?.workoutLogs.find(
-    (workoutLog) => workoutLog.workoutId === activeWorkout.id
-  );
-  const activeWorkoutSummary = getWorkoutSummary(activeWorkoutLog);
   const activeWeekSummary = getWeekSummary(activeWeek);
-  const totalExerciseCount = new Set(
-    appState.templates.flatMap((workout) => workout.exercises.map((exercise) => exercise.id))
-  ).size;
-
-  const updateState = (updater: (currentState: AppState) => AppState) => {
-    setAppState((currentState) => (currentState ? updater(currentState) : currentState));
-  };
+  const activeWorkoutSummary = getWorkoutSummary(activeWorkoutLog);
+  const activeEntries = activeWorkout.exercises.map((exercise) => ({
+    template: exercise,
+    log: activeWorkoutLog.exerciseLogs.find((entry) => entry.exerciseId === exercise.id)
+  }));
 
   const updateSetValue = (
     exerciseId: string,
-    setIndex: number,
+    slotIndex: number,
     field: 'load' | 'reps',
     value: string
   ) => {
@@ -155,7 +147,7 @@ function App() {
     updateState((currentState) => ({
       ...currentState,
       weeks: currentState.weeks.map((week) => {
-        if (week.id !== currentState.activeWeekId) {
+        if (week.index !== currentState.activeWeekIndex) {
           return week;
         }
 
@@ -173,108 +165,14 @@ function App() {
                   return exerciseLog;
                 }
 
-                return {
-                  ...exerciseLog,
-                  sets: exerciseLog.sets.map((setEntry, currentIndex) =>
-                    currentIndex === setIndex ? { ...setEntry, [field]: sanitizedValue } : setEntry
-                  )
-                };
-              })
-            };
-          })
-        };
-      })
-    }));
-  };
-
-  const updateExerciseNote = (exerciseId: string, note: string) => {
-    updateState((currentState) => ({
-      ...currentState,
-      customizations: {
-        ...currentState.customizations,
-        [exerciseId]: {
-          ...currentState.customizations[exerciseId],
-          note
-        }
-      }
-    }));
-  };
-
-  const updateExerciseImage = async (exerciseId: string, file: File) => {
-    const imageDataUrl = await fileToDataUrl(file);
-
-    updateState((currentState) => ({
-      ...currentState,
-      customizations: {
-        ...currentState.customizations,
-        [exerciseId]: {
-          ...currentState.customizations[exerciseId],
-          imageDataUrl
-        }
-      }
-    }));
-
-    setFlashMessage('Foto salva no aparelho.');
-  };
-
-  const removeExerciseImage = (exerciseId: string) => {
-    updateState((currentState) => ({
-      ...currentState,
-      customizations: {
-        ...currentState.customizations,
-        [exerciseId]: {
-          ...currentState.customizations[exerciseId],
-          imageDataUrl: undefined
-        }
-      }
-    }));
-  };
-
-  const handleNewWeek = () => {
-    updateState((currentState) => {
-      const currentWeek =
-        currentState.weeks.find((week) => week.id === currentState.activeWeekId) ?? currentState.weeks[0];
-      const nextWeek = cloneWeek(currentWeek, nextWeekLabel(currentState.weeks));
-
-      return {
-        ...currentState,
-        weeks: [...currentState.weeks, nextWeek],
-        activeWeekId: nextWeek.id
-      };
-    });
-
-    setFlashMessage('Nova semana criada copiando os valores atuais.');
-  };
-
-  const handleResetWorkout = () => {
-    updateState((currentState) => ({
-      ...currentState,
-      weeks: currentState.weeks.map((week) => {
-        if (week.id !== currentState.activeWeekId) {
-          return week;
-        }
-
-        return {
-          ...week,
-          workoutLogs: week.workoutLogs.map((workoutLog) => {
-            if (workoutLog.workoutId !== currentState.activeWorkoutId) {
-              return workoutLog;
-            }
-
-            const template = currentState.templates.find(
-              (currentTemplate) => currentTemplate.id === currentState.activeWorkoutId
-            );
-
-            return {
-              ...workoutLog,
-              exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
-                const exerciseTemplate = template?.exercises.find(
-                  (exercise) => exercise.id === exerciseLog.exerciseId
+                const nextSets = exerciseLog.sets.map((setEntry) =>
+                  setEntry.slotIndex === slotIndex ? { ...setEntry, [field]: sanitizedValue } : setEntry
                 );
 
                 return {
                   ...exerciseLog,
-                  sets: createEmptySets(exerciseTemplate?.setCount ?? exerciseLog.sets.length)
+                  sets: nextSets,
+                  summary: calculateSummaryFromSets({ sets: nextSets })
                 };
               })
             };
@@ -282,60 +180,94 @@ function App() {
         };
       })
     }));
-
-    setFlashMessage('Treino atual zerado para nova execucao.');
   };
 
-  const handleExport = () => {
-    const payload = createBackupPayload(appState);
-    const fileName = `gym-local-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
-    setFlashMessage('Backup exportado em JSON.');
-  };
-
-  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) {
+  const handleCopyPreviousWeek = () => {
+    if (appState.activeWeekIndex === 0) {
       return;
     }
 
+    updateState((currentState) => ({
+      ...currentState,
+      weeks: currentState.weeks.map((week) =>
+        week.index === currentState.activeWeekIndex
+          ? {
+              ...week,
+              workoutLogs: structuredClone(currentState.weeks[currentState.activeWeekIndex - 1].workoutLogs)
+            }
+          : week
+      )
+    }));
+
+    setFlashMessage('Semana anterior copiada.');
+  };
+
+  const handleClearWeek = () => {
+    updateState((currentState) => ({
+      ...currentState,
+      weeks: currentState.weeks.map((week) =>
+        week.index === currentState.activeWeekIndex
+          ? {
+              ...week,
+              workoutLogs: week.workoutLogs.map((workoutLog) => {
+                const workoutTemplate = currentState.templates.find(
+                  (template) => template.id === workoutLog.workoutId
+                );
+
+                return {
+                  ...workoutLog,
+                  exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
+                    const exerciseTemplate = workoutTemplate?.exercises.find(
+                      (exercise) => exercise.id === exerciseLog.exerciseId
+                    );
+
+                    return {
+                      ...exerciseLog,
+                      sets: exerciseTemplate ? createEmptySetEntries(exerciseTemplate) : exerciseLog.sets,
+                      summary: {
+                        totalLoad: null,
+                        averageReps: null,
+                        setCount: 0
+                      }
+                    };
+                  })
+                };
+              })
+            }
+          : week
+      )
+    }));
+
+    setFlashMessage('Semana atual zerada.');
+  };
+
+  const handleExportWorkbook = async () => {
+    setIsExportingWorkbook(true);
+
     try {
-      const rawContent = await file.text();
-      const parsedContent = JSON.parse(rawContent) as unknown;
-      const importedState = readImportedState(parsedContent);
-
-      if (!importedState) {
-        throw new Error('Formato invalido.');
-      }
-
-      setAppState(importedState);
-      setFlashMessage('Backup importado com sucesso.');
+      await exportWorkbookFile(appState, appState.activeWeekIndex);
+      setFlashMessage('Planilha exportada em Excel.');
     } catch {
-      setFlashMessage('Nao foi possivel importar esse arquivo.');
+      setFlashMessage('Nao foi possivel exportar o Excel.');
     } finally {
-      event.target.value = '';
+      setIsExportingWorkbook(false);
     }
   };
 
-  const handleImageChange = async (exerciseId: string, event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) {
+  const handleExportPdf = async () => {
+    if (!pdfSheetRef.current) {
       return;
     }
 
+    setIsExportingPdf(true);
+
     try {
-      await updateExerciseImage(exerciseId, file);
+      await exportWorkbookPdf(pdfSheetRef.current, appState.activeWeekIndex);
+      setFlashMessage('Planilha exportada em PDF.');
+    } catch {
+      setFlashMessage('Nao foi possivel exportar o PDF.');
     } finally {
-      event.target.value = '';
+      setIsExportingPdf(false);
     }
   };
 
@@ -346,400 +278,180 @@ function App() {
     setPinError('');
   };
 
-  const previousWorkoutSummary = previousWorkoutLog ? getWorkoutSummary(previousWorkoutLog) : null;
-
   return (
-    <main className="app-shell app-shell--dashboard">
-      <header className="topbar">
-        <div className="topbar-copy">
-          <p className="eyebrow">{APP_NAME}</p>
-          <h1>Ficha local no celular, sem scroll lateral.</h1>
-          <p className="lead">
-            Semana ativa editavel, copia rapida de semana, PIN simples e backup JSON.
+    <main className="app-shell app-shell--workbook">
+      <header className="toolbar">
+        <div className="toolbar__copy">
+          <p className="pin-brand">{APP_NAME}</p>
+          <h1>{activeWeek.label}</h1>
+          <p>
+            {formatMetric(activeWeekSummary.totalLoad, 0)} kg total · {formatMetric(activeWeekSummary.averageReps)} reps
           </p>
         </div>
 
-        <div className="topbar-actions">
-          <button className="button button--secondary" type="button" onClick={handleNewWeek}>
-            Nova semana
+        <div className="toolbar__actions">
+          <button
+            className="button button--secondary"
+            disabled={appState.activeWeekIndex === 0}
+            type="button"
+            onClick={handleCopyPreviousWeek}
+          >
+            Copiar anterior
           </button>
-          <button className="button button--secondary" type="button" onClick={handleExport}>
-            Exportar
+          <button className="button button--secondary" type="button" onClick={handleClearWeek}>
+            Limpar semana
           </button>
           <button
             className="button button--secondary"
+            disabled={isExportingWorkbook}
             type="button"
-            onClick={() => importInputRef.current?.click()}
+            onClick={() => {
+              void handleExportWorkbook();
+            }}
           >
-            Importar
+            {isExportingWorkbook ? 'Gerando Excel...' : 'Excel'}
+          </button>
+          <button
+            className="button button--secondary"
+            disabled={isExportingPdf}
+            type="button"
+            onClick={() => {
+              void handleExportPdf();
+            }}
+          >
+            {isExportingPdf ? 'Gerando PDF...' : 'PDF'}
           </button>
           <button className="button button--ghost" type="button" onClick={handleLock}>
             Travar
           </button>
-          <input
-            ref={importInputRef}
-            accept="application/json"
-            hidden
-            type="file"
-            onChange={(event) => {
-              void handleImport(event);
-            }}
-          />
         </div>
       </header>
 
       {flashMessage ? <div className="toast">{flashMessage}</div> : null}
 
-      <section className="overview-grid">
-        <article className="overview-card">
-          <span className="metric-label">Semana ativa</span>
-          <strong className="metric-value">{activeWeek.label}</strong>
-          <span className="metric-note">Criada em {formatDateLabel(activeWeek.createdAt)}</span>
-        </article>
-
-        <article className="overview-card">
-          <span className="metric-label">Carga total</span>
-          <strong className="metric-value">{formatMetric(activeWeekSummary.totalLoad, 0)} kg</strong>
-          <span className="metric-note">Media {formatMetric(activeWeekSummary.averageReps)} reps</span>
-        </article>
-
-        <article className="overview-card">
-          <span className="metric-label">Estrutura</span>
-          <strong className="metric-value">{appState.templates.length} treinos</strong>
-          <span className="metric-note">{totalExerciseCount} exercicios no app</span>
-        </article>
-      </section>
-
-      <section className="panel week-panel">
-        <div className="section-heading-row">
-          <div>
-            <p className="section-kicker">Semanas</p>
-            <h2>Troque de semana com um toque.</h2>
-          </div>
-          <button className="button button--ghost" type="button" onClick={handleNewWeek}>
-            Copiar semana ativa
-          </button>
-        </div>
-
-        <div className="pill-row">
-          {appState.weeks.map((week) => {
-            const weekSummary = getWeekSummary(week);
-
-            return (
-              <button
-                key={week.id}
-                className={`pill-button ${week.id === activeWeek.id ? 'pill-button--active' : ''}`}
-                type="button"
-                onClick={() => {
-                  updateState((currentState) => ({
-                    ...currentState,
-                    activeWeekId: week.id
-                  }));
-                }}
-              >
-                <span>{week.label}</span>
-                <small>{formatMetric(weekSummary.totalLoad, 0)} kg</small>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="workout-tabs">
-        {appState.templates.map((workout) => {
-          const workoutLog =
-            activeWeek.workoutLogs.find((entry) => entry.workoutId === workout.id) ??
-            activeWeek.workoutLogs[0];
-          const summary = getWorkoutSummary(workoutLog);
+      <section className="week-strip" aria-label="Semanas">
+        {appState.weeks.map((week) => {
+          const summary = getWeekSummary(week);
 
           return (
             <button
-              key={workout.id}
-              className={`workout-tab ${workout.id === activeWorkout.id ? 'workout-tab--active' : ''}`}
+              key={week.index}
+              className={`week-chip${week.index === appState.activeWeekIndex ? ' week-chip--active' : ''}`}
               type="button"
               onClick={() => {
                 updateState((currentState) => ({
                   ...currentState,
-                  activeWorkoutId: workout.id
+                  activeWeekIndex: week.index
                 }));
               }}
             >
-              <span>{workout.name}</span>
-              <small>{formatMetric(summary.totalLoad, 0)} kg</small>
+              <strong>{week.label}</strong>
+              <span>{formatMetric(summary.totalLoad, 0)} kg</span>
             </button>
           );
         })}
       </section>
 
-      <section className="dashboard-grid">
-        <div className="panel panel--main">
-          <div className="workout-hero">
-            <div>
-              <p className="section-kicker">{activeWorkout.name}</p>
-              <h2>{activeWorkout.subtitle}</h2>
-              <p className="workout-hero__copy">
-                Ajuste carga e repeticoes sem copiar coluna por coluna. Se quiser, anexe uma foto do
-                exercicio no proprio aparelho.
-              </p>
-            </div>
+      <section className="workout-strip" aria-label="Treinos">
+        {appState.templates.map((workout) => (
+          <button
+            key={workout.id}
+            className={`workout-chip${workout.id === activeWorkout.id ? ' workout-chip--active' : ''}`}
+            style={{ ['--workout-accent' as string]: workout.accent }}
+            type="button"
+            onClick={() => {
+              updateState((currentState) => ({
+                ...currentState,
+                activeWorkoutId: workout.id
+              }));
+            }}
+          >
+            <strong>{workout.name}</strong>
+            <span>{workout.subtitle}</span>
+          </button>
+        ))}
+      </section>
 
-            <div className="workout-hero__stats">
-              <div className="stat-pill">
-                <span>Carga</span>
-                <strong>{formatMetric(activeWorkoutSummary.totalLoad, 0)} kg</strong>
+      <section className="workout-summary-card">
+        <div>
+          <p className="section-label">Treino ativo</p>
+          <h2>{activeWorkout.name}</h2>
+        </div>
+        <div className="summary-line">
+          <span>{formatMetric(activeWorkoutSummary.totalLoad, 0)} kg</span>
+          <span>{formatMetric(activeWorkoutSummary.averageReps)} reps</span>
+        </div>
+      </section>
+
+      <section className="exercise-stack">
+        {activeEntries.map(({ template, log }) => {
+          if (!log) {
+            return null;
+          }
+
+          return (
+            <article key={template.id} className="exercise-card">
+              <div className="exercise-card__header">
+                <div>
+                  <h3>{template.name}</h3>
+                  <p>
+                    {template.orangeSetCount} laranja · {template.redSetCount} vermelha
+                  </p>
+                </div>
+                {template.videoUrl ? (
+                  <a className="video-link" href={template.videoUrl} rel="noreferrer" target="_blank">
+                    Video
+                  </a>
+                ) : null}
               </div>
-              <div className="stat-pill">
-                <span>Media</span>
-                <strong>{formatMetric(activeWorkoutSummary.averageReps)} reps</strong>
+
+              <div className="exercise-card__summary">
+                <span>Carga {formatMetric(log.summary.totalLoad, 0)} kg</span>
+                <span>Media {formatMetric(log.summary.averageReps)} reps</span>
               </div>
-              <button className="button button--ghost" type="button" onClick={handleResetWorkout}>
-                Zerar treino
-              </button>
-            </div>
-          </div>
 
-          <div className="exercise-list">
-            {activeWorkout.exercises.map((exercise) => {
-              const exerciseLog =
-                activeWorkoutLog.exerciseLogs.find((entry) => entry.exerciseId === exercise.id) ?? {
-                  exerciseId: exercise.id,
-                  sets: createEmptySets(exercise.setCount)
-                };
-              const previousExerciseLog = previousWorkoutLog?.exerciseLogs.find(
-                (entry) => entry.exerciseId === exercise.id
-              );
-              const currentSummary = getExerciseSummary(exerciseLog);
-              const previousSummary = previousExerciseLog ? getExerciseSummary(previousExerciseLog) : null;
-              const customization = appState.customizations[exercise.id] ?? {};
-              const noteValue = customization.note ?? exercise.cue;
-              const referenceImage = customization.imageDataUrl ?? exercise.thumbnailUrl;
-              const deltaTone = previousSummary
-                ? getDeltaTone(currentSummary.totalLoad, previousSummary.totalLoad)
-                : 'neutral';
-
-              return (
-                <article key={`${activeWorkout.id}-${exercise.id}`} className="exercise-card">
-                  <div className="exercise-card__media">
-                    {referenceImage ? (
-                      <img alt={exercise.name} src={referenceImage} />
-                    ) : (
-                      <div className="exercise-placeholder">
-                        <span>{exercise.focus}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="exercise-card__body">
-                    <div className="exercise-card__header">
-                      <div>
-                        <p className="exercise-focus">{exercise.focus}</p>
-                        <h3>{exercise.name}</h3>
-                      </div>
-
-                      <div className="exercise-mini-metrics">
-                        <span>{formatMetric(currentSummary.totalLoad, 0)} kg</span>
-                        <span>{formatMetric(currentSummary.averageReps)} reps</span>
-                        <span className={`delta delta--${deltaTone}`}>
-                          {previousSummary
-                            ? getDeltaLabel(currentSummary.totalLoad, previousSummary.totalLoad)
-                            : 'sem comparacao'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <label className="field">
-                      <span>Descricao rapida</span>
-                      <textarea
-                        rows={3}
-                        value={noteValue}
-                        onChange={(event) => updateExerciseNote(exercise.id, event.target.value)}
+              <div className="set-grid">
+                {log.sets.map((setEntry) => (
+                  <div
+                    key={`${template.id}-${setEntry.slotIndex}`}
+                    className={`set-card set-card--${setEntry.type}`}
+                  >
+                    <span className="set-card__title">Serie {setEntry.slotIndex + 1}</span>
+                    <label>
+                      <span>Kg</span>
+                      <input
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={setEntry.load}
+                        onChange={(event) =>
+                          updateSetValue(template.id, setEntry.slotIndex, 'load', event.target.value)
+                        }
                       />
                     </label>
-
-                    <div className="exercise-actions">
-                      {exercise.videoUrl ? (
-                        <a
-                          className="button button--secondary"
-                          href={exercise.videoUrl}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Abrir video
-                        </a>
-                      ) : null}
-                      <label className="button button--ghost button--file">
-                        Adicionar foto
-                        <input
-                          accept="image/*"
-                          hidden
-                          type="file"
-                          onChange={(event) => {
-                            void handleImageChange(exercise.id, event);
-                          }}
-                        />
-                      </label>
-                      {customization.imageDataUrl ? (
-                        <button
-                          className="button button--ghost"
-                          type="button"
-                          onClick={() => removeExerciseImage(exercise.id)}
-                        >
-                          Remover foto
-                        </button>
-                      ) : null}
-                    </div>
-
-                    <div className="set-grid">
-                      {exerciseLog.sets.map((setEntry, setIndex) => (
-                        <div key={`${exercise.id}-${setIndex}`} className="set-row">
-                          <span className="set-badge">S{setIndex + 1}</span>
-
-                          <label className="inline-field">
-                            <span>Kg</span>
-                            <input
-                              inputMode="decimal"
-                              placeholder="0"
-                              type="text"
-                              value={setEntry.load}
-                              onChange={(event) =>
-                                updateSetValue(exercise.id, setIndex, 'load', event.target.value)
-                              }
-                            />
-                          </label>
-
-                          <label className="inline-field">
-                            <span>Reps</span>
-                            <input
-                              inputMode="decimal"
-                              placeholder="0"
-                              type="text"
-                              value={setEntry.reps}
-                              onChange={(event) =>
-                                updateSetValue(exercise.id, setIndex, 'reps', event.target.value)
-                              }
-                            />
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+                    <label>
+                      <span>Reps</span>
+                      <input
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={setEntry.reps}
+                        onChange={(event) =>
+                          updateSetValue(template.id, setEntry.slotIndex, 'reps', event.target.value)
+                        }
+                      />
+                    </label>
                   </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-
-        <aside className="panel panel--side">
-          <section className="side-block">
-            <div className="section-heading-row section-heading-row--compact">
-              <div>
-                <p className="section-kicker">Resumo rapido</p>
-                <h2>Semana atual</h2>
+                ))}
               </div>
-            </div>
-
-            <div className="summary-list">
-              {appState.templates.map((workout) => {
-                const workoutLog =
-                  activeWeek.workoutLogs.find((entry) => entry.workoutId === workout.id) ??
-                  activeWeek.workoutLogs[0];
-                const summary = getWorkoutSummary(workoutLog);
-                const isActive = workout.id === activeWorkout.id;
-
-                return (
-                  <button
-                    key={workout.id}
-                    className={`summary-item ${isActive ? 'summary-item--active' : ''}`}
-                    type="button"
-                    onClick={() => {
-                      updateState((currentState) => ({
-                        ...currentState,
-                        activeWorkoutId: workout.id
-                      }));
-                    }}
-                  >
-                    <div>
-                      <strong>{workout.name}</strong>
-                      <small>{workout.subtitle}</small>
-                    </div>
-                    <div>
-                      <strong>{formatMetric(summary.totalLoad, 0)} kg</strong>
-                      <small>{formatMetric(summary.averageReps)} reps</small>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="side-block">
-            <div className="section-heading-row section-heading-row--compact">
-              <div>
-                <p className="section-kicker">Historico</p>
-                <h2>Comparacao por semana</h2>
-              </div>
-            </div>
-
-            <div className="history-list">
-              {[...appState.weeks].reverse().map((week) => {
-                const summary = getWeekSummary(week);
-                const isActive = week.id === activeWeek.id;
-
-                return (
-                  <button
-                    key={week.id}
-                    className={`history-card ${isActive ? 'history-card--active' : ''}`}
-                    type="button"
-                    onClick={() => {
-                      updateState((currentState) => ({
-                        ...currentState,
-                        activeWeekId: week.id
-                      }));
-                    }}
-                  >
-                    <div>
-                      <strong>{week.label}</strong>
-                      <small>{formatDateLabel(week.createdAt)}</small>
-                    </div>
-                    <div>
-                      <strong>{formatMetric(summary.totalLoad, 0)} kg</strong>
-                      <small>{formatMetric(summary.averageReps)} reps</small>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="side-block side-block--guide">
-            <div className="section-heading-row section-heading-row--compact">
-              <div>
-                <p className="section-kicker">Fluxo simples</p>
-                <h2>Como usar</h2>
-              </div>
-            </div>
-
-            <ul className="guide-list">
-              <li>Use Nova semana para duplicar a ficha e evitar copiar coluna por coluna.</li>
-              <li>O app já importa thumb e link do catalogo; se quiser, substitua por uma foto sua.</li>
-              <li>Exporte o JSON antes de trocar de celular ou limpar o navegador.</li>
-              <li>Se quiser publicar, troque o PIN padrao no arquivo de configuracao antes do deploy.</li>
-            </ul>
-
-            {previousWorkoutSummary ? (
-              <div className="comparison-card">
-                <span className="metric-label">Comparacao do treino ativo</span>
-                <strong>
-                  {getDeltaLabel(activeWorkoutSummary.totalLoad, previousWorkoutSummary.totalLoad)} de carga
-                </strong>
-                <small>
-                  Semana anterior: {formatMetric(previousWorkoutSummary.totalLoad, 0)} kg total
-                </small>
-              </div>
-            ) : null}
-          </section>
-        </aside>
+            </article>
+          );
+        })}
       </section>
+
+      <div className="sheet-capture-surface" aria-hidden="true">
+        <div ref={pdfSheetRef} className="sheet-capture-frame">
+          <WorkbookSheet cellValues={workbookCellValues} layout={workbookLayout} />
+        </div>
+      </div>
     </main>
   );
 }

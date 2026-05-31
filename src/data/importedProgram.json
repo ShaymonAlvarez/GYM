@@ -1,7 +1,8 @@
 {
-  "generatedAt": "2026-05-31T21:21:51.824Z",
+  "generatedAt": "2026-05-31T23:35:18.466Z",
   "sourceWorkbook": "Planilha de cargas Rayza Alvarez_clean.xlsx",
   "sourceCatalog": "Catálogo de exercícios.pdf",
+  "latestWeekIndex": 6,
   "workouts": [
     {
       "id": "treino-a",
@@ -12,20 +13,68 @@
         {
           "id": "cadeira-abdutora",
           "name": "CADEIRA ABDUTORA",
+          "rowNumber": 5,
           "focus": "Gluteo medio",
           "cue": "Empurre para fora sem perder o controle da volta e sem balancar o tronco.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "45",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "50",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "55",
               "reps": "10.5"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 1392,
+              "averageReps": 10.67,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1580,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1580,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1635,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1635,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1635,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1717.5,
+              "averageReps": 11.5,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/VpcT1v-079w",
@@ -36,16 +85,62 @@
         {
           "id": "elevacao-pelvica",
           "name": "ELEVAÇÃO PELVICA",
+          "rowNumber": 6,
           "focus": "Gluteo maximo",
           "cue": "Suba contraindo os gluteos, pause no topo e evite compensar com a lombar.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "52",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "62",
               "reps": "11"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 720,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 920,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 920,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 972,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1182,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1182,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1306,
+              "averageReps": 11.5,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/Zp26q4BY5HE",
@@ -56,16 +151,62 @@
         {
           "id": "leg-press",
           "name": "LEG PRESS",
+          "rowNumber": 7,
           "focus": "Quadriceps e gluteo",
           "cue": "Desca controlando o joelho e empurre a plataforma sem tirar o quadril do banco.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "40",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "50",
               "reps": "10"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 840,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 960,
+              "averageReps": 12,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 830,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 980,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 980,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 880,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 980,
+              "averageReps": 11,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/fM2WvgirlLM",
@@ -76,20 +217,68 @@
         {
           "id": "cadeira-extensora",
           "name": "CADEIRA EXTENSORA",
+          "rowNumber": 8,
           "focus": "Quadriceps",
           "cue": "Estenda ate o topo, segure um instante e retorne sem soltar o peso.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "20",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "20",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "25",
               "reps": "12"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 540,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 544,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 680,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 730,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 730,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 730,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 780,
+              "averageReps": 12,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/pJZXbaF-MCM",
@@ -100,20 +289,68 @@
         {
           "id": "cadeira-flexora",
           "name": "CADEIRA FLEXORA",
+          "rowNumber": 9,
           "focus": "Posterior de coxa",
           "cue": "Puxe com o posterior e controle a descida para manter tensao o tempo inteiro.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "30",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "30",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "35",
               "reps": "12"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 816,
+              "averageReps": 10.67,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 828,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 905,
+              "averageReps": 9.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1040,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1040,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1040,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1140,
+              "averageReps": 12,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/-EIXZD5AEuE",
@@ -132,20 +369,68 @@
         {
           "id": "elevacao-lateral-com-halter",
           "name": "ELEVAÇÃO LATERAL C/H",
+          "rowNumber": 11,
           "focus": "Deltoide lateral",
           "cue": "Suba os halteres ate a linha do ombro e desca sem embalo.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "4",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "4",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "5",
               "reps": "11"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 115,
+              "averageReps": 9,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 115,
+              "averageReps": 9,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 136,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 136,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 136,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 141,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 151,
+              "averageReps": 11.666666666666666,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/qDAoUOmdbi4",
@@ -156,20 +441,68 @@
         {
           "id": "supino-reto-maquina",
           "name": "SUPINO RETO MÁQUINA",
+          "rowNumber": 12,
           "focus": "Peitoral",
           "cue": "Mantenha as escapulas apoiadas e empurre sem projetar os ombros para frente.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "8",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "8",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "9",
               "reps": "12"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 230,
+              "averageReps": 9,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 256,
+              "averageReps": 10,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 266,
+              "averageReps": 10.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 282,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 282,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 298,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 300,
+              "averageReps": 12,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/0CFOTfwP4CY",
@@ -180,16 +513,62 @@
         {
           "id": "puxada-pronada-polia",
           "name": "PUXADA PRONADA POLIA",
+          "rowNumber": 13,
           "focus": "Dorsal",
           "cue": "Inicie puxando pelas costas e finalize com o cotovelo para baixo e para tras.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "20",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "25",
               "reps": "10"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 400,
+              "averageReps": 9,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 440,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 425,
+              "averageReps": 8.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 465,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 465,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 490,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 490,
+              "averageReps": 11,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/WjSVqshIaBo",
@@ -200,16 +579,62 @@
         {
           "id": "remada-serrote",
           "name": "REMADA SERROTE",
+          "rowNumber": 14,
           "focus": "Dorsal e romboides",
           "cue": "Mantenha o tronco firme e puxe com o cotovelo colado ao corpo.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "10",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "14",
               "reps": "9"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 176,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 197,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 260,
+              "averageReps": 13,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 240,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 240,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 252,
+              "averageReps": 11.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 246,
+              "averageReps": 10.5,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/EUisRaNkCd4",
@@ -220,16 +645,62 @@
         {
           "id": "rosca-direta-polia",
           "name": "ROSCA DIRETA POLIA",
+          "rowNumber": 15,
           "focus": "Biceps",
           "cue": "Cotovelos fixos ao lado do corpo e subida sem usar impulso.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "5",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "7",
               "reps": "9"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 70,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 70,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 75,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 80,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 80,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 116,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 123,
+              "averageReps": 10.5,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/_ziU37WD50I",
@@ -248,20 +719,68 @@
         {
           "id": "cadeira-abdutora",
           "name": "CADEIRA ABDUTORA",
+          "rowNumber": 17,
           "focus": "Gluteo medio",
           "cue": "Empurre para fora sem perder o controle da volta e sem balancar o tronco.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "45",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "50",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "55",
               "reps": "16"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 1520,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1580,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1635,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1635,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1635,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 1745,
+              "averageReps": 11.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 2020,
+              "averageReps": 13.333333333333334,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/VpcT1v-079w",
@@ -272,16 +791,62 @@
         {
           "id": "elevacao-pelvica",
           "name": "ELEVAÇÃO PELVICA",
+          "rowNumber": 18,
           "focus": "Gluteo maximo",
           "cue": "Suba contraindo os gluteos, pause no topo e evite compensar com a lombar.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "62",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "72",
               "reps": "11"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 820,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1058,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1182,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1182,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1182,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1368,
+              "averageReps": 12,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 1536,
+              "averageReps": 11.5,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/Zp26q4BY5HE",
@@ -292,16 +857,62 @@
         {
           "id": "rdl",
           "name": "RDL",
+          "rowNumber": 19,
           "focus": "Posterior e gluteo",
           "cue": "Empurre o quadril para tras mantendo a coluna neutra e a carga proxima das pernas.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "40",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "50",
               "reps": "10"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 605,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 640,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 720,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 760,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 760,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 840,
+              "averageReps": 12,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 980,
+              "averageReps": 11,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/HCIAl9ro2p4?t=47",
@@ -312,20 +923,68 @@
         {
           "id": "mesa-flexora",
           "name": "MESA FLEXORA",
+          "rowNumber": 20,
           "focus": "Posterior de coxa",
           "cue": "Evite tirar o quadril do banco e controle a volta ate o fim do movimento.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "15",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "15",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "15",
               "reps": "7"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 258,
+              "averageReps": 10,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 360,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 360,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 500,
+              "averageReps": 10.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 500,
+              "averageReps": 10.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 500,
+              "averageReps": 10.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 465,
+              "averageReps": 10.333333333333334,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/n5WDXD_mpVY?si=kuU-IzPmSNyFBeA2",
@@ -336,20 +995,68 @@
         {
           "id": "cadeira-extensora",
           "name": "CADEIRA EXTENSORA",
+          "rowNumber": 21,
           "focus": "Quadriceps",
           "cue": "Estenda ate o topo, segure um instante e retorne sem soltar o peso.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "20",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "20",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "25",
               "reps": "12"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 575,
+              "averageReps": 9,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 655,
+              "averageReps": 10.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 680,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 730,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 730,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 730,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 780,
+              "averageReps": 12,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/pJZXbaF-MCM",
@@ -368,20 +1075,68 @@
         {
           "id": "elevacao-lateral-com-halter",
           "name": "ELEVAÇÃO LATERAL C/H",
+          "rowNumber": 23,
           "focus": "Deltoide lateral",
           "cue": "Suba os halteres ate a linha do ombro e desca sem embalo.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "4",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "4",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "5",
               "reps": "12"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 115,
+              "averageReps": 9,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 119,
+              "averageReps": 9.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 141,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 146,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 146,
+              "averageReps": 11.333333333333334,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 156,
+              "averageReps": 12,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 156,
+              "averageReps": 12,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/qDAoUOmdbi4",
@@ -392,20 +1147,68 @@
         {
           "id": "desenvolvimento-com-halter",
           "name": "DESENVOLVIMENTO C/H",
+          "rowNumber": 24,
           "focus": "Ombro",
           "cue": "Empurre acima da cabeca sem arquear a lombar e sem perder o controle.",
-          "seedSets": [
+          "orangeSetCount": 2,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            0,
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 0,
               "load": "6",
               "reps": "12"
             },
             {
+              "slotIndex": 1,
               "load": "6",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "7",
               "reps": "8"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 136,
+              "averageReps": 8.666666666666666,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 142,
+              "averageReps": 9,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 174,
+              "averageReps": 11,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 192,
+              "averageReps": 12,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 192,
+              "averageReps": 12,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 192,
+              "averageReps": 12,
+              "setCount": 3
+            },
+            {
+              "totalLoad": 200,
+              "averageReps": 10.666666666666666,
+              "setCount": 3
             }
           ],
           "videoUrl": "https://youtu.be/L-iQfHVeuVg",
@@ -416,16 +1219,62 @@
         {
           "id": "puxada-neutra-polia",
           "name": "PUXADA NEUTRA POLIA",
+          "rowNumber": 25,
           "focus": "Dorsal",
           "cue": "Leve o cotovelo para baixo e para tras antes de devolver a barra.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "25",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "30",
               "reps": "10"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 415,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 460,
+              "averageReps": 8.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 570,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 600,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 600,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 600,
+              "averageReps": 11,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 600,
+              "averageReps": 11,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/dgCYN_JBk44",
@@ -436,16 +1285,62 @@
         {
           "id": "remada-pronada-maquina",
           "name": "REMADA PRONADA MÁQUINA",
+          "rowNumber": 26,
           "focus": "Dorsal e meio das costas",
           "cue": "Puxe aproximando as escapulas e evite jogar o tronco para tras.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "30",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "34",
               "reps": "8"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 415,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 485,
+              "averageReps": 9,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 510,
+              "averageReps": 9.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 540,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 540,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 540,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 632,
+              "averageReps": 10,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/ahBaYwptV-Q",
@@ -456,16 +1351,62 @@
         {
           "id": "triceps-polia",
           "name": "TRICEPS POLIA",
+          "rowNumber": 27,
           "focus": "Triceps",
           "cue": "Estenda os cotovelos sem abrir os bracos e controle a volta.",
-          "seedSets": [
+          "orangeSetCount": 1,
+          "redSetCount": 1,
+          "activeSlotIndices": [
+            1,
+            2
+          ],
+          "currentSets": [
             {
+              "slotIndex": 1,
               "load": "7",
               "reps": "12"
             },
             {
+              "slotIndex": 2,
               "load": "10",
               "reps": "5"
+            }
+          ],
+          "summaries": [
+            {
+              "totalLoad": 144,
+              "averageReps": 9,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 164,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 174,
+              "averageReps": 10.5,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 164,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 164,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 164,
+              "averageReps": 10,
+              "setCount": 2
+            },
+            {
+              "totalLoad": 134,
+              "averageReps": 8.5,
+              "setCount": 2
             }
           ],
           "videoUrl": "https://youtu.be/lr_BEvE3iBQ",
