@@ -18,6 +18,26 @@ import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from '
 import type { AppState, SheetLayout } from './types';
 
 const workbookLayout = sheetLayout as SheetLayout;
+type SaveStatus = 'saved' | 'saving' | 'dirty';
+
+const getCompletion = (workoutLog: AppState['weeks'][number]['workoutLogs'][number]) => {
+  const total = workoutLog.exerciseLogs.reduce((count, exerciseLog) => count + exerciseLog.sets.length, 0);
+  const completed = workoutLog.exerciseLogs.reduce(
+    (count, exerciseLog) =>
+      count + exerciseLog.sets.filter((setEntry) => setEntry.load.trim() && setEntry.reps.trim()).length,
+    0
+  );
+
+  return { completed, total };
+};
+
+const formatSavedAt = (date: Date | null) =>
+  date
+    ? new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date)
+    : 'agora';
 
 function App() {
   const [appState, setAppState] = useState<AppState | null>(null);
@@ -27,6 +47,8 @@ function App() {
   const [flashMessage, setFlashMessage] = useState('');
   const [isExportingWorkbook, setIsExportingWorkbook] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const pdfSheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -59,7 +81,12 @@ function App() {
     }
 
     const timeoutId = window.setTimeout(() => {
-      void saveAppState(appState);
+      setSaveStatus('saving');
+
+      void saveAppState(appState).then(() => {
+        setLastSavedAt(new Date());
+        setSaveStatus('saved');
+      });
     }, 180);
 
     return () => window.clearTimeout(timeoutId);
@@ -83,6 +110,7 @@ function App() {
   );
 
   const updateState = (updater: (currentState: AppState) => AppState) => {
+    setSaveStatus('dirty');
     setAppState((currentState) => (currentState ? updater(currentState) : currentState));
   };
 
@@ -131,10 +159,21 @@ function App() {
     activeWeek.workoutLogs[0];
   const activeWeekSummary = getWeekSummary(activeWeek);
   const activeWorkoutSummary = getWorkoutSummary(activeWorkoutLog);
+  const activeCompletion = getCompletion(activeWorkoutLog);
+  const activeProgress = activeCompletion.total
+    ? Math.round((activeCompletion.completed / activeCompletion.total) * 100)
+    : 0;
   const activeEntries = activeWorkout.exercises.map((exercise) => ({
     template: exercise,
     log: activeWorkoutLog.exerciseLogs.find((entry) => entry.exerciseId === exercise.id)
   }));
+
+  const saveStatusLabel =
+    saveStatus === 'dirty'
+      ? 'Alteracoes pendentes'
+      : saveStatus === 'saving'
+        ? 'Salvando...'
+        : `Salvo ${formatSavedAt(lastSavedAt)}`;
 
   const updateSetValue = (
     exerciseId: string,
@@ -241,6 +280,19 @@ function App() {
     setFlashMessage('Semana atual zerada.');
   };
 
+  const handleSubmitWorkout = async () => {
+    setSaveStatus('saving');
+
+    try {
+      await saveAppState(appState);
+      setLastSavedAt(new Date());
+      setSaveStatus('saved');
+      setFlashMessage('Dados salvos corretamente.');
+    } catch {
+      setFlashMessage('Nao foi possivel salvar agora.');
+    }
+  };
+
   const handleExportWorkbook = async () => {
     setIsExportingWorkbook(true);
 
@@ -283,13 +335,23 @@ function App() {
       <header className="toolbar">
         <div className="toolbar__copy">
           <p className="pin-brand">{APP_NAME}</p>
-          <h1>{activeWeek.label}</h1>
+          <h1>{activeWeek.label} · {activeWorkout.name}</h1>
           <p>
-            {formatMetric(activeWeekSummary.totalLoad, 0)} kg total · {formatMetric(activeWeekSummary.averageReps)} reps
+            {activeCompletion.completed}/{activeCompletion.total} series preenchidas · {saveStatusLabel}
           </p>
         </div>
 
         <div className="toolbar__actions">
+          <button
+            className="button button--primary"
+            disabled={saveStatus === 'saving'}
+            type="button"
+            onClick={() => {
+              void handleSubmitWorkout();
+            }}
+          >
+            {saveStatus === 'saving' ? 'Salvando...' : 'Salvar dados'}
+          </button>
           <button
             className="button button--secondary"
             disabled={appState.activeWeekIndex === 0}
@@ -329,47 +391,93 @@ function App() {
 
       {flashMessage ? <div className="toast">{flashMessage}</div> : null}
 
-      <section className="week-strip" aria-label="Semanas">
-        {appState.weeks.map((week) => {
-          const summary = getWeekSummary(week);
+      <section className="dashboard-panel" aria-label="Resumo da ficha">
+        <article className="metric-card metric-card--accent">
+          <span>Semana</span>
+          <strong>{formatMetric(activeWeekSummary.totalLoad, 0)} kg</strong>
+          <small>{formatMetric(activeWeekSummary.averageReps)} reps de media</small>
+        </article>
+        <article className="metric-card">
+          <span>Treino ativo</span>
+          <strong>{formatMetric(activeWorkoutSummary.totalLoad, 0)} kg</strong>
+          <small>{activeWorkout.subtitle}</small>
+        </article>
+        <article className="metric-card">
+          <span>Preenchimento</span>
+          <strong>{activeProgress}%</strong>
+          <small>{activeCompletion.completed} de {activeCompletion.total} series</small>
+        </article>
+      </section>
 
-          return (
+      <section className="progress-panel" aria-label="Progresso do treino">
+        <div>
+          <span className={`save-dot save-dot--${saveStatus}`} />
+          <strong>{saveStatusLabel}</strong>
+        </div>
+        <div className="progress-bar" aria-hidden="true">
+          <span style={{ width: `${activeProgress}%` }} />
+        </div>
+      </section>
+
+      <section className="choice-panel" aria-label="Escolha a semana">
+        <div className="section-heading">
+          <span>1</span>
+          <div>
+            <p>Semana</p>
+            <h2>Escolha onde preencher</h2>
+          </div>
+        </div>
+        <div className="week-strip">
+          {appState.weeks.map((week) => {
+            const summary = getWeekSummary(week);
+
+            return (
+              <button
+                key={week.index}
+                className={`week-chip${week.index === appState.activeWeekIndex ? ' week-chip--active' : ''}`}
+                type="button"
+                onClick={() => {
+                  updateState((currentState) => ({
+                    ...currentState,
+                    activeWeekIndex: week.index
+                  }));
+                }}
+              >
+                <strong>{week.label}</strong>
+                <span>{formatMetric(summary.totalLoad, 0)} kg</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="choice-panel" aria-label="Escolha o treino">
+        <div className="section-heading">
+          <span>2</span>
+          <div>
+            <p>Treino</p>
+            <h2>Abra a ficha do dia</h2>
+          </div>
+        </div>
+        <div className="workout-strip">
+          {appState.templates.map((workout) => (
             <button
-              key={week.index}
-              className={`week-chip${week.index === appState.activeWeekIndex ? ' week-chip--active' : ''}`}
+              key={workout.id}
+              className={`workout-chip${workout.id === activeWorkout.id ? ' workout-chip--active' : ''}`}
+              style={{ ['--workout-accent' as string]: workout.accent }}
               type="button"
               onClick={() => {
                 updateState((currentState) => ({
                   ...currentState,
-                  activeWeekIndex: week.index
+                  activeWorkoutId: workout.id
                 }));
               }}
             >
-              <strong>{week.label}</strong>
-              <span>{formatMetric(summary.totalLoad, 0)} kg</span>
+              <strong>{workout.name}</strong>
+              <span>{workout.subtitle}</span>
             </button>
-          );
-        })}
-      </section>
-
-      <section className="workout-strip" aria-label="Treinos">
-        {appState.templates.map((workout) => (
-          <button
-            key={workout.id}
-            className={`workout-chip${workout.id === activeWorkout.id ? ' workout-chip--active' : ''}`}
-            style={{ ['--workout-accent' as string]: workout.accent }}
-            type="button"
-            onClick={() => {
-              updateState((currentState) => ({
-                ...currentState,
-                activeWorkoutId: workout.id
-              }));
-            }}
-          >
-            <strong>{workout.name}</strong>
-            <span>{workout.subtitle}</span>
-          </button>
-        ))}
+          ))}
+        </div>
       </section>
 
       <section className="workout-summary-card">
@@ -382,6 +490,14 @@ function App() {
           <span>{formatMetric(activeWorkoutSummary.averageReps)} reps</span>
         </div>
       </section>
+
+      <div className="section-heading section-heading--floating">
+        <span>3</span>
+        <div>
+          <p>Series</p>
+          <h2>Preencha carga e repeticoes</h2>
+        </div>
+      </div>
 
       <section className="exercise-stack">
         {activeEntries.map(({ template, log }) => {
@@ -416,7 +532,9 @@ function App() {
                     key={`${template.id}-${setEntry.slotIndex}`}
                     className={`set-card set-card--${setEntry.type}`}
                   >
-                    <span className="set-card__title">Serie {setEntry.slotIndex + 1}</span>
+                    <span className="set-card__title">
+                      Serie {setEntry.slotIndex + 1} · {setEntry.type === 'orange' ? 'aquecimento' : 'valida'}
+                    </span>
                     <label>
                       <span>Kg</span>
                       <input
