@@ -37,6 +37,7 @@ const SUMMARY_COLUMN_PAIRS = [
 
 type WorkbookCellMap = Record<string, string>;
 type WorkbookCell = {
+  clear: () => WorkbookCell;
   formula: () => string | undefined;
   value: (value?: number | string) => unknown;
 };
@@ -53,7 +54,7 @@ type LoadedWorkbook = {
   templateData: ArrayBuffer;
 };
 
-const toWorkbookValue = (value: string): number | string => {
+const toWorkbookNumberInput = (value: string): number | '' => {
   const trimmed = value.trim();
 
   if (!trimmed) {
@@ -62,7 +63,7 @@ const toWorkbookValue = (value: string): number | string => {
 
   const parsed = Number(trimmed.replace(',', '.'));
 
-  return Number.isFinite(parsed) ? parsed : trimmed;
+  return Number.isFinite(parsed) ? parsed : '';
 };
 
 const getWorkoutLog = (state: AppState, weekIndex: number, workoutId: string): WorkoutLog | null => {
@@ -109,6 +110,11 @@ const writeEditableCell = (sheet: WorkbookSheet, address: string, value: number 
   const cell = sheet.cell(address);
 
   if (cell.formula()) {
+    return;
+  }
+
+  if (value === '') {
+    cell.clear();
     return;
   }
 
@@ -359,8 +365,8 @@ export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: num
           return;
         }
 
-        writeEditableCell(sheet, `${pair.load}${rowNumber}`, toWorkbookValue(setEntry.load));
-        writeEditableCell(sheet, `${pair.reps}${rowNumber}`, toWorkbookValue(setEntry.reps));
+        writeEditableCell(sheet, `${pair.load}${rowNumber}`, toWorkbookNumberInput(setEntry.load));
+        writeEditableCell(sheet, `${pair.reps}${rowNumber}`, toWorkbookNumberInput(setEntry.reps));
       });
 
       state.weeks.forEach((_, weekIndex) => {
