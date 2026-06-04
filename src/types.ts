@@ -53,11 +53,18 @@ export type WeekLog = {
   workoutLogs: WorkoutLog[];
 };
 
+export type FeedbackState = {
+  weeklyAnswers: string[][];
+  weeklyComments: string[];
+  photoNote: string;
+};
+
 export type AppState = {
   templates: WorkoutTemplate[];
   weeks: WeekLog[];
   activeWeekIndex: number;
   activeWorkoutId: string;
+  feedback?: FeedbackState;
 };
 
 export type SummaryMetrics = ExerciseSummary;

@@ -39,7 +39,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -76,7 +77,10 @@ a {
 .progress-panel,
 .choice-panel,
 .workout-summary-card,
-.exercise-card {
+.exercise-card,
+.guidance-panel,
+.sheet-preview-panel,
+.feedback-panel {
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
@@ -132,7 +136,8 @@ a {
 }
 
 .pin-input,
-.set-card input {
+.set-card input,
+.feedback-field textarea {
   width: 100%;
   border: 1px solid var(--border-strong);
   border-radius: 14px;
@@ -142,7 +147,8 @@ a {
 }
 
 .pin-input:focus,
-.set-card input:focus {
+.set-card input:focus,
+.feedback-field textarea:focus {
   border-color: rgba(245, 158, 11, 0.74);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
 }
@@ -300,6 +306,24 @@ a {
   padding: 14px;
 }
 
+.guidance-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 22px;
+  padding: 13px 14px;
+  color: var(--muted);
+}
+
+.guidance-panel strong {
+  color: var(--text);
+}
+
+.guidance-panel span {
+  text-align: right;
+}
+
 .progress-panel > div:first-child {
   display: flex;
   align-items: center;
@@ -440,6 +464,23 @@ a {
   padding: 16px;
 }
 
+.sheet-preview-panel,
+.feedback-panel {
+  display: grid;
+  gap: 14px;
+  border-radius: 24px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.sheet-preview-panel__scroller {
+  max-width: 100%;
+  overflow: auto;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .summary-line {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -532,6 +573,33 @@ a {
   padding: 11px 12px;
 }
 
+.feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.feedback-field {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.feedback-field span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.feedback-field textarea {
+  min-height: 76px;
+  resize: vertical;
+  padding: 11px 12px;
+}
+
+.feedback-field--wide {
+  grid-column: 1 / -1;
+}
+
 .sheet-capture-surface {
   position: fixed;
   left: -10000px;
@@ -582,9 +650,22 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .guidance-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .guidance-panel span {
+    text-align: left;
+  }
+
   .workout-summary-card {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .feedback-grid {
+    grid-template-columns: 1fr;
   }
 
   .summary-line {

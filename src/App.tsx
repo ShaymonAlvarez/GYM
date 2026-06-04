@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PinGate from './components/PinGate';
 import WorkbookSheet from './components/WorkbookSheet';
 import { APP_NAME, SESSION_UNLOCK_KEY, STATIC_PIN } from './config';
+import { FEEDBACK_QUESTIONS, normalizeFeedbackState } from './data/feedback';
 import { createSeedAppState } from './data/seedData';
 import sheetLayout from './data/sheetLayout.json';
 import { loadAppState, saveAppState } from './lib/db';
@@ -47,6 +48,7 @@ function App() {
   const [flashMessage, setFlashMessage] = useState('');
   const [isExportingWorkbook, setIsExportingWorkbook] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSheetPreviewVisible, setIsSheetPreviewVisible] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const pdfSheetRef = useRef<HTMLDivElement | null>(null);
@@ -167,6 +169,8 @@ function App() {
     template: exercise,
     log: activeWorkoutLog.exerciseLogs.find((entry) => entry.exerciseId === exercise.id)
   }));
+  const feedbackState = normalizeFeedbackState(appState.feedback, appState.weeks.length);
+  const activeFeedbackAnswers = feedbackState.weeklyAnswers[appState.activeWeekIndex] ?? [];
 
   const saveStatusLabel =
     saveStatus === 'dirty'
@@ -219,6 +223,45 @@ function App() {
         };
       })
     }));
+  };
+
+  const updateFeedbackAnswer = (questionIndex: number, value: string) => {
+    updateState((currentState) => {
+      const nextFeedback = normalizeFeedbackState(currentState.feedback, currentState.weeks.length);
+
+      nextFeedback.weeklyAnswers[currentState.activeWeekIndex][questionIndex] = value;
+
+      return {
+        ...currentState,
+        feedback: nextFeedback
+      };
+    });
+  };
+
+  const updateFeedbackComment = (value: string) => {
+    updateState((currentState) => {
+      const nextFeedback = normalizeFeedbackState(currentState.feedback, currentState.weeks.length);
+
+      nextFeedback.weeklyComments[currentState.activeWeekIndex] = value;
+
+      return {
+        ...currentState,
+        feedback: nextFeedback
+      };
+    });
+  };
+
+  const updatePhotoNote = (value: string) => {
+    updateState((currentState) => {
+      const nextFeedback = normalizeFeedbackState(currentState.feedback, currentState.weeks.length);
+
+      nextFeedback.photoNote = value;
+
+      return {
+        ...currentState,
+        feedback: nextFeedback
+      };
+    });
   };
 
   const handleCopyPreviousWeek = () => {
@@ -383,6 +426,15 @@ function App() {
           >
             {isExportingPdf ? 'Gerando PDF...' : 'PDF'}
           </button>
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={() => {
+              setIsSheetPreviewVisible((currentValue) => !currentValue);
+            }}
+          >
+            {isSheetPreviewVisible ? 'Ocultar planilha' : 'Ver planilha'}
+          </button>
           <button className="button button--ghost" type="button" onClick={handleLock}>
             Travar
           </button>
@@ -417,6 +469,13 @@ function App() {
         <div className="progress-bar" aria-hidden="true">
           <span style={{ width: `${activeProgress}%` }} />
         </div>
+      </section>
+
+      <section className="guidance-panel" aria-label="Como preencher">
+        <strong>Preencha apenas as series coloridas</strong>
+        <span>
+          O Excel exportado preserva o modelo original e atualiza somente cargas, repeticoes, resumos e feedback.
+        </span>
       </section>
 
       <section className="choice-panel" aria-label="Escolha a semana">
@@ -491,8 +550,23 @@ function App() {
         </div>
       </section>
 
+      {isSheetPreviewVisible ? (
+        <section className="sheet-preview-panel" aria-label="Previa da planilha Excel">
+          <div className="section-heading">
+            <span>3</span>
+            <div>
+              <p>Excel</p>
+              <h2>Conferencia do layout</h2>
+            </div>
+          </div>
+          <div className="sheet-preview-panel__scroller">
+            <WorkbookSheet cellValues={workbookCellValues} layout={workbookLayout} />
+          </div>
+        </section>
+      ) : null}
+
       <div className="section-heading section-heading--floating">
-        <span>3</span>
+        <span>{isSheetPreviewVisible ? '4' : '3'}</span>
         <div>
           <p>Series</p>
           <h2>Preencha carga e repeticoes</h2>
@@ -563,6 +637,49 @@ function App() {
             </article>
           );
         })}
+      </section>
+
+      <section className="feedback-panel" aria-label="Feedback do periodo">
+        <div className="section-heading">
+          <span>{isSheetPreviewVisible ? '5' : '4'}</span>
+          <div>
+            <p>Feedback</p>
+            <h2>{activeWeek.label}</h2>
+          </div>
+        </div>
+
+        <div className="feedback-grid">
+          {FEEDBACK_QUESTIONS.map((question, questionIndex) => (
+            <label key={question.rowNumber} className="feedback-field">
+              <span>{question.text}</span>
+              <textarea
+                rows={2}
+                value={activeFeedbackAnswers[questionIndex] ?? ''}
+                onChange={(event) => updateFeedbackAnswer(questionIndex, event.target.value)}
+              />
+            </label>
+          ))}
+        </div>
+
+        <label className="feedback-field feedback-field--wide">
+          <span>Comentarios da {activeWeek.label}</span>
+          <textarea
+            rows={4}
+            value={feedbackState.weeklyComments[appState.activeWeekIndex] ?? ''}
+            onChange={(event) => updateFeedbackComment(event.target.value)}
+          />
+        </label>
+
+        {appState.activeWeekIndex === 5 ? (
+          <label className="feedback-field feedback-field--wide">
+            <span>Semana 6 fotos</span>
+            <textarea
+              rows={3}
+              value={feedbackState.photoNote}
+              onChange={(event) => updatePhotoNote(event.target.value)}
+            />
+          </label>
+        ) : null}
       </section>
 
       <div className="sheet-capture-surface" aria-hidden="true">

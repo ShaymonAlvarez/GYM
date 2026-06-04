@@ -1,10 +1,20 @@
 import html2canvas from 'html2canvas';
+import JSZip from 'jszip';
 import jsPDF from 'jspdf';
 import XlsxPopulate from 'xlsx-populate/browser/xlsx-populate-no-encryption.min.js';
+import {
+  COMMENT_WEEK_START_ROWS,
+  FEEDBACK_QUESTIONS,
+  FEEDBACK_WEEK_COLUMNS,
+  PHOTO_NOTE_ROW,
+  normalizeFeedbackState
+} from '../data/feedback';
 import type { AppState, SheetLayout, SummaryMetrics, WorkoutLog } from '../types';
 import { formatWorkbookNumber } from './state';
 
 const WORKBOOK_SHEET_NAME = 'cargas - Planilha para acompanh';
+const FEEDBACK_SHEET_NAME = 'feedback - Feedback do per\u00edodo';
+const COMMENTS_SHEET_NAME = 'feedback - Coment\u00e1rios';
 const WORKBOOK_TEMPLATE_URL = new URL('../../Planilha de cargas Rayza Alvarez_clean.xlsx', import.meta.url).href;
 const SERIES_COLUMN_PAIRS = [
   { load: 'D', reps: 'E' },
@@ -26,6 +36,22 @@ const SUMMARY_COLUMN_PAIRS = [
 ];
 
 type WorkbookCellMap = Record<string, string>;
+type WorkbookCell = {
+  formula: () => string | undefined;
+  value: (value?: number | string) => unknown;
+};
+type WorkbookSheet = {
+  cell: (address: string) => WorkbookCell;
+};
+type WorkbookInstance = {
+  sheet: (name: string) => WorkbookSheet;
+  outputAsync: () => Promise<Blob>;
+  _node?: { children?: Array<{ name: string; attributes: Record<string, string> }> };
+};
+type LoadedWorkbook = {
+  workbook: WorkbookInstance;
+  templateData: ArrayBuffer;
+};
 
 const toWorkbookValue = (value: string): number | string => {
   const trimmed = value.trim();
@@ -77,6 +103,139 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+};
+
+const writeEditableCell = (sheet: WorkbookSheet, address: string, value: number | string) => {
+  const cell = sheet.cell(address);
+
+  if (cell.formula()) {
+    return;
+  }
+
+  cell.value(value);
+};
+
+const markWorkbookForRecalculation = (workbook: WorkbookInstance) => {
+  const calcPr = workbook._node?.children?.find((node) => node.name === 'calcPr');
+
+  if (!calcPr) {
+    return;
+  }
+
+  calcPr.attributes = {
+    ...calcPr.attributes,
+    calcMode: 'auto',
+    fullCalcOnLoad: '1',
+    forceFullCalc: '1'
+  };
+};
+
+const getDirectChildrenByTagName = (element: Element, tagName: string) =>
+  Array.from(element.childNodes).filter(
+    (node): node is Element => node instanceof Element && node.tagName === tagName
+  );
+
+const getColumnIndex = (address: string) =>
+  address
+    .replace(/\d+/g, '')
+    .split('')
+    .reduce((columnIndex, letter) => columnIndex * 26 + letter.charCodeAt(0) - 64, 0);
+
+const getRowNumber = (address: string) => Number(address.replace(/\D+/g, ''));
+
+const findCellElement = (doc: Document, address: string) =>
+  Array.from(doc.getElementsByTagName('c')).find((cell) => cell.getAttribute('r') === address) ?? null;
+
+const findRowElement = (doc: Document, rowNumber: number) =>
+  Array.from(doc.getElementsByTagName('row')).find((row) => Number(row.getAttribute('r')) === rowNumber) ?? null;
+
+const removeCachedFormulaValues = (cell: Element) => {
+  getDirectChildrenByTagName(cell, 'v').forEach((valueNode) => {
+    cell.removeChild(valueNode);
+  });
+};
+
+const insertCellInColumnOrder = (row: Element, cell: Element) => {
+  const cellAddress = cell.getAttribute('r');
+
+  if (!cellAddress) {
+    row.appendChild(cell);
+    return;
+  }
+
+  const nextColumnIndex = getColumnIndex(cellAddress);
+  const nextSibling = getDirectChildrenByTagName(row, 'c').find((existingCell) => {
+    const existingAddress = existingCell.getAttribute('r');
+
+    return existingAddress ? getColumnIndex(existingAddress) > nextColumnIndex : false;
+  });
+
+  row.insertBefore(cell, nextSibling ?? null);
+};
+
+const restoreWorksheetFormulas = (templateXml: string, exportedXml: string) => {
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  const templateDoc = parser.parseFromString(templateXml, 'application/xml');
+  const exportedDoc = parser.parseFromString(exportedXml, 'application/xml');
+  const templateFormulaCells = Array.from(templateDoc.getElementsByTagName('c')).filter(
+    (cell) => getDirectChildrenByTagName(cell, 'f').length > 0
+  );
+
+  templateFormulaCells.forEach((templateCell) => {
+    const address = templateCell.getAttribute('r');
+
+    if (!address) {
+      return;
+    }
+
+    const formulaCell = exportedDoc.importNode(templateCell, true) as Element;
+    const exportedCell = findCellElement(exportedDoc, address);
+
+    removeCachedFormulaValues(formulaCell);
+
+    if (exportedCell?.parentNode) {
+      exportedCell.parentNode.replaceChild(formulaCell, exportedCell);
+      return;
+    }
+
+    const row = findRowElement(exportedDoc, getRowNumber(address));
+
+    if (row) {
+      insertCellInColumnOrder(row, formulaCell);
+    }
+  });
+
+  return serializer.serializeToString(exportedDoc);
+};
+
+const restoreTemplateFormulas = async (templateData: ArrayBuffer, exportedWorkbook: Blob) => {
+  const [templateZip, exportedZip] = await Promise.all([JSZip.loadAsync(templateData), JSZip.loadAsync(exportedWorkbook)]);
+  const worksheetPaths = Object.keys(templateZip.files).filter((path) => /^xl\/worksheets\/sheet\d+\.xml$/.test(path));
+
+  await Promise.all(
+    worksheetPaths.map(async (path) => {
+      const templateFile = templateZip.file(path);
+      const exportedFile = exportedZip.file(path);
+
+      if (!templateFile || !exportedFile) {
+        return;
+      }
+
+      const [templateXml, exportedXml] = await Promise.all([templateFile.async('string'), exportedFile.async('string')]);
+
+      if (!templateXml.includes('<f') && !templateXml.includes(':f')) {
+        return;
+      }
+
+      exportedZip.file(path, restoreWorksheetFormulas(templateXml, exportedXml));
+    })
+  );
+
+  return exportedZip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE'
+  });
 };
 
 const buildExportName = (weekIndex: number, extension: 'xlsx' | 'pdf') =>
@@ -136,32 +295,61 @@ export const buildSheetDisplayValues = (
   return values;
 };
 
-const loadTemplateWorkbook = async () => {
+const loadTemplateWorkbook = async (): Promise<LoadedWorkbook> => {
   const response = await fetch(WORKBOOK_TEMPLATE_URL);
 
   if (!response.ok) {
     throw new Error('Nao foi possivel carregar a planilha modelo.');
   }
 
-  return XlsxPopulate.fromDataAsync(await response.arrayBuffer());
+  const templateData = await response.arrayBuffer();
+
+  return {
+    workbook: await XlsxPopulate.fromDataAsync(templateData.slice(0)),
+    templateData
+  };
+};
+
+const exportFeedbackSheets = (workbook: WorkbookInstance, state: AppState) => {
+  const feedbackState = normalizeFeedbackState(state.feedback, state.weeks.length);
+  const feedbackSheet = workbook.sheet(FEEDBACK_SHEET_NAME);
+  const commentsSheet = workbook.sheet(COMMENTS_SHEET_NAME);
+
+  FEEDBACK_WEEK_COLUMNS.forEach((column, weekIndex) => {
+    FEEDBACK_QUESTIONS.forEach((question, questionIndex) => {
+      writeEditableCell(
+        feedbackSheet,
+        `${column}${question.rowNumber}`,
+        feedbackState.weeklyAnswers[weekIndex]?.[questionIndex] ?? ''
+      );
+    });
+  });
+
+  COMMENT_WEEK_START_ROWS.forEach((rowNumber, weekIndex) => {
+    writeEditableCell(commentsSheet, `B${rowNumber}`, feedbackState.weeklyComments[weekIndex] ?? '');
+  });
+
+  writeEditableCell(commentsSheet, `B${PHOTO_NOTE_ROW}`, feedbackState.photoNote);
 };
 
 export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: number): Promise<void> => {
-  const workbook = await loadTemplateWorkbook();
+  const { workbook, templateData } = await loadTemplateWorkbook();
   const sheet = workbook.sheet(WORKBOOK_SHEET_NAME);
+
+  markWorkbookForRecalculation(workbook);
 
   state.templates.forEach((workout) => {
     workout.exercises.forEach((exercise) => {
       const rowNumber = exercise.rowNumber;
 
       SERIES_COLUMN_PAIRS.forEach((pair) => {
-        sheet.cell(`${pair.load}${rowNumber}`).value('');
-        sheet.cell(`${pair.reps}${rowNumber}`).value('');
+        writeEditableCell(sheet, `${pair.load}${rowNumber}`, '');
+        writeEditableCell(sheet, `${pair.reps}${rowNumber}`, '');
       });
 
       SUMMARY_COLUMN_PAIRS.forEach((pair) => {
-        sheet.cell(`${pair.load}${rowNumber}`).value('');
-        sheet.cell(`${pair.reps}${rowNumber}`).value('');
+        writeEditableCell(sheet, `${pair.load}${rowNumber}`, '');
+        writeEditableCell(sheet, `${pair.reps}${rowNumber}`, '');
       });
 
       getSelectedWeekExerciseSets(state, selectedWeekIndex, workout.id, exercise.id).forEach((setEntry) => {
@@ -171,22 +359,26 @@ export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: num
           return;
         }
 
-        sheet.cell(`${pair.load}${rowNumber}`).value(toWorkbookValue(setEntry.load));
-        sheet.cell(`${pair.reps}${rowNumber}`).value(toWorkbookValue(setEntry.reps));
+        writeEditableCell(sheet, `${pair.load}${rowNumber}`, toWorkbookValue(setEntry.load));
+        writeEditableCell(sheet, `${pair.reps}${rowNumber}`, toWorkbookValue(setEntry.reps));
       });
 
       state.weeks.forEach((_, weekIndex) => {
         const pair = SUMMARY_COLUMN_PAIRS[weekIndex];
         const summary = getExerciseSummary(state, weekIndex, workout.id, exercise.id);
 
-        sheet.cell(`${pair.load}${rowNumber}`).value(summary.totalLoad ?? '');
-        sheet.cell(`${pair.reps}${rowNumber}`).value(summary.averageReps ?? '');
+        writeEditableCell(sheet, `${pair.load}${rowNumber}`, summary.totalLoad ?? '');
+        writeEditableCell(sheet, `${pair.reps}${rowNumber}`, summary.averageReps ?? '');
       });
     });
   });
 
+  exportFeedbackSheets(workbook, state);
+
   const workbookBlob = await workbook.outputAsync();
-  downloadBlob(workbookBlob, buildExportName(selectedWeekIndex, 'xlsx'));
+  const workbookWithFormulas = await restoreTemplateFormulas(templateData, workbookBlob);
+
+  downloadBlob(workbookWithFormulas, buildExportName(selectedWeekIndex, 'xlsx'));
 };
 
 export const exportWorkbookPdf = async (target: HTMLElement, selectedWeekIndex: number): Promise<void> => {

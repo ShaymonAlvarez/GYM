@@ -1,6 +1,7 @@
 import importedProgram from './importedProgram.json';
 import type { AppState, SetEntry, WorkoutTemplate, WeekLog } from '../types';
 import { createEmptySetEntries, createSummary } from '../lib/state';
+import { createEmptyFeedbackState } from './feedback';
 
 type ImportedExercise = {
   id: string;
@@ -94,6 +95,7 @@ export const createSeedAppState = (): AppState => {
     templates: seedTemplates,
     weeks,
     activeWeekIndex: program.latestWeekIndex,
-    activeWorkoutId: seedTemplates[0]?.id ?? ''
+    activeWorkoutId: seedTemplates[0]?.id ?? '',
+    feedback: createEmptyFeedbackState(weeks.length)
   };
 };
