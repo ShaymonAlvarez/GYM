@@ -10,10 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.0",
     "dexie": "^4.4.3",
     "html2canvas": "^1.4.1",
-    "jszip": "^3.10.1",
     "jspdf": "^4.2.1",
+    "jszip": "^3.10.1",
     "pdf-to-png-converter": "^3.18.0",
     "pdfjs-dist": "^5.6.205",
     "react": "^18.3.1",

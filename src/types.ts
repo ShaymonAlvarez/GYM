@@ -1,4 +1,4 @@
-export type SetType = 'orange' | 'red';
+export type SetType = 'yellow' | 'orange' | 'red';
 
 export type SetEntry = {
   slotIndex: number;
@@ -59,12 +59,37 @@ export type FeedbackState = {
   photoNote: string;
 };
 
+export type LocalMediaAsset = {
+  id: string;
+  type: 'photo' | 'video';
+  name: string;
+  dataUrl?: string;
+  remoteUrl?: string;
+  storagePath?: string;
+  mimeType?: string;
+  originalBytes?: number;
+  optimizedBytes?: number;
+  syncedAt?: string;
+  createdAt: string;
+  weekIndex: number;
+  workoutId: string;
+  exerciseId?: string;
+};
+
+export type SupabaseSettings = {
+  enabled: boolean;
+  projectUrl: string;
+  anonKey: string;
+};
+
 export type AppState = {
   templates: WorkoutTemplate[];
   weeks: WeekLog[];
   activeWeekIndex: number;
   activeWorkoutId: string;
   feedback?: FeedbackState;
+  localMedia?: LocalMediaAsset[];
+  supabase?: SupabaseSettings;
 };
 
 export type SummaryMetrics = ExerciseSummary;

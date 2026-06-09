@@ -8,6 +8,7 @@ import type {
   WorkoutLog,
   WorkoutTemplate
 } from '../types';
+import { FEEDBACK_WEEK_COUNT, normalizeFeedbackState } from '../data/feedback';
 
 const parseNumber = (value: string): number | null => {
   const normalized = value.replace(',', '.').trim();
@@ -60,7 +61,7 @@ export const createEmptySetEntries = (
 ): SetEntry[] =>
   template.activeSlotIndices.map((slotIndex, activeIndex) => ({
     slotIndex,
-    type: activeIndex < template.orangeSetCount ? 'orange' : 'red',
+    type: slotIndex === 0 ? 'yellow' : activeIndex < template.orangeSetCount ? 'orange' : 'red',
     load: initialValues?.[slotIndex]?.load ?? '',
     reps: initialValues?.[slotIndex]?.reps ?? ''
   }));
@@ -170,6 +171,57 @@ export const formatWorkbookNumber = (value: number | null): string => {
   return String(Number(value.toFixed(2))).replace(/\.00$/, '');
 };
 
+export const normalizeAppState = (state: AppState): AppState => {
+  const weekCount = FEEDBACK_WEEK_COUNT;
+  const weeks = state.weeks.slice(0, weekCount).map((week, weekIndex) => ({
+    ...week,
+    index: weekIndex,
+    label: `Semana ${weekIndex + 1}`,
+    workoutLogs: week.workoutLogs.map((workoutLog) => {
+      const workoutTemplate = state.templates.find((template) => template.id === workoutLog.workoutId);
+
+      if (!workoutTemplate) {
+        return workoutLog;
+      }
+
+      return {
+        ...workoutLog,
+        exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
+          const exerciseTemplate = workoutTemplate.exercises.find((exercise) => exercise.id === exerciseLog.exerciseId);
+
+          if (!exerciseTemplate) {
+            return exerciseLog;
+          }
+
+          const valuesBySlot = Object.fromEntries(
+            exerciseLog.sets.map((setEntry) => [setEntry.slotIndex, { load: setEntry.load, reps: setEntry.reps }])
+          );
+          const sets = createEmptySetEntries(exerciseTemplate, valuesBySlot);
+
+          return {
+            ...exerciseLog,
+            sets,
+            summary: calculateSummaryFromSets({ sets })
+          };
+        })
+      };
+    })
+  }));
+
+  return {
+    ...state,
+    weeks,
+    activeWeekIndex: Math.min(Math.max(state.activeWeekIndex, 0), weeks.length - 1),
+    feedback: normalizeFeedbackState(state.feedback, weeks.length),
+    localMedia: (state.localMedia ?? []).filter((asset) => asset.weekIndex < weeks.length),
+    supabase: {
+      enabled: state.supabase?.enabled ?? false,
+      projectUrl: state.supabase?.projectUrl ?? '',
+      anonKey: state.supabase?.anonKey ?? ''
+    }
+  };
+};
+
 const looksLikeExerciseTemplate = (
   value: unknown
 ): value is WorkoutTemplate['exercises'][number] => {
@@ -211,7 +263,7 @@ const looksLikeSetEntry = (value: unknown): value is SetEntry => {
 
   return (
     typeof candidate.slotIndex === 'number' &&
-    (candidate.type === 'orange' || candidate.type === 'red') &&
+    (candidate.type === 'yellow' || candidate.type === 'orange' || candidate.type === 'red') &&
     typeof candidate.load === 'string' &&
     typeof candidate.reps === 'string'
   );

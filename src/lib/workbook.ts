@@ -298,6 +298,11 @@ export const buildSheetDisplayValues = (
     });
   });
 
+  if (state.weeks.length < 7) {
+    values.AF3 = '';
+    values.AG3 = '';
+  }
+
   return values;
 };
 

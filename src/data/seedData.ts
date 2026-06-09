@@ -1,7 +1,7 @@
 import importedProgram from './importedProgram.json';
 import type { AppState, SetEntry, WorkoutTemplate, WeekLog } from '../types';
 import { createEmptySetEntries, createSummary } from '../lib/state';
-import { createEmptyFeedbackState } from './feedback';
+import { createEmptyFeedbackState, FEEDBACK_WEEK_COUNT } from './feedback';
 
 type ImportedExercise = {
   id: string;
@@ -38,6 +38,7 @@ type ImportedProgram = {
 };
 
 const program = importedProgram as ImportedProgram;
+const latestSeedWeekIndex = Math.min(program.latestWeekIndex, FEEDBACK_WEEK_COUNT - 1);
 
 export const seedTemplates: WorkoutTemplate[] = program.workouts.map((workout) => ({
   id: workout.id,
@@ -61,7 +62,7 @@ export const seedTemplates: WorkoutTemplate[] = program.workouts.map((workout) =
 }));
 
 const createInitialWeeks = (): WeekLog[] =>
-  Array.from({ length: 7 }, (_, weekIndex) => ({
+  Array.from({ length: FEEDBACK_WEEK_COUNT }, (_, weekIndex) => ({
     index: weekIndex,
     label: `Semana ${weekIndex + 1}`,
     workoutLogs: program.workouts.map((workout, workoutIndex) => ({
@@ -69,7 +70,7 @@ const createInitialWeeks = (): WeekLog[] =>
       exerciseLogs: workout.exercises.map((exercise, exerciseIndex) => {
         const template = seedTemplates[workoutIndex].exercises[exerciseIndex];
         const initialValues =
-          weekIndex === program.latestWeekIndex
+          weekIndex === latestSeedWeekIndex
             ? Object.fromEntries(
                 exercise.currentSets.map((setEntry) => [
                   setEntry.slotIndex,
@@ -94,8 +95,14 @@ export const createSeedAppState = (): AppState => {
   return {
     templates: seedTemplates,
     weeks,
-    activeWeekIndex: program.latestWeekIndex,
+    activeWeekIndex: latestSeedWeekIndex,
     activeWorkoutId: seedTemplates[0]?.id ?? '',
-    feedback: createEmptyFeedbackState(weeks.length)
+    feedback: createEmptyFeedbackState(weeks.length),
+    localMedia: [],
+    supabase: {
+      enabled: false,
+      projectUrl: '',
+      anonKey: ''
+    }
   };
 };
