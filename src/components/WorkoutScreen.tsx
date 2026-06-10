@@ -1,4 +1,4 @@
-import type { AppState, ExerciseTemplate, ExerciseLog, SetType } from '../types';
+import type { AppState, ExerciseTemplate, ExerciseLog, SetType, SummaryMetrics } from '../types';
 
 type WorkoutScreenProps = {
   appState: AppState;
@@ -15,6 +15,7 @@ type WorkoutScreenProps = {
   formatMetric: (value: number | null, maxFractionDigits?: number) => string;
   formatDuration: (seconds: number) => string;
   getSetTypeLabel: (type: SetType) => string;
+  getWeekSummary: (week: AppState['weeks'][number]) => SummaryMetrics;
   onSetValueChange: (exerciseId: string, slotIndex: number, field: 'load' | 'reps', value: string) => void;
   onWorkoutStart: () => void;
   onWorkoutEnd: () => void;
@@ -25,6 +26,8 @@ type WorkoutScreenProps = {
   onSave: () => void;
   onCopyPrevious: () => void;
   onClearWeek: () => void;
+  onWeekChange: (weekIndex: number) => void;
+  onWorkoutChange: (workoutId: string) => void;
 };
 
 function WorkoutScreen({
@@ -42,6 +45,7 @@ function WorkoutScreen({
   formatMetric,
   formatDuration,
   getSetTypeLabel,
+  getWeekSummary,
   onSetValueChange,
   onWorkoutStart,
   onWorkoutEnd,
@@ -51,10 +55,52 @@ function WorkoutScreen({
   onRestReset,
   onSave,
   onCopyPrevious,
-  onClearWeek
+  onClearWeek,
+  onWeekChange,
+  onWorkoutChange
 }: WorkoutScreenProps) {
   return (
     <div className="screen" key="workout">
+      
+      {/* SELETORES DE TREINO (Topo) */}
+      <div className="workout-selectors">
+        <div className="selector-strip">
+          {appState.weeks.map((week) => {
+            const summary = getWeekSummary(week);
+            return (
+              <button
+                key={week.index}
+                className={`week-chip${week.index === appState.activeWeekIndex ? ' week-chip--active' : ''}`}
+                type="button"
+                onClick={() => onWeekChange(week.index)}
+              >
+                <strong>{week.label}</strong>
+                <span>{formatMetric(summary.totalLoad, 0)} kg</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="selector-strip">
+          {appState.templates.map((workout) => (
+            <button
+              key={workout.id}
+              className={`workout-chip${workout.id === activeWorkout.id ? ' workout-chip--active' : ''}`}
+              style={{ ['--workout-accent' as string]: workout.accent }}
+              type="button"
+              onClick={() => onWorkoutChange(workout.id)}
+            >
+              <strong>{workout.name}</strong>
+              <span>{workout.subtitle}</span>
+            </button>
+          ))}
+        </div>
+        <div className="legend-row">
+          <span className="legend-pill legend-pill--yellow">Aquecimento</span>
+          <span className="legend-pill legend-pill--orange">Série séria</span>
+          <span className="legend-pill legend-pill--red">Série difícil</span>
+        </div>
+      </div>
+
       {/* Timers */}
       <div className="timer-grid">
         <div className="timer-card">
@@ -134,13 +180,6 @@ function WorkoutScreen({
       </div>
 
       {/* Exercícios */}
-      <div>
-        <p className="section-label">Séries</p>
-        <div className="section-title">
-          <h2>Carga, repetições e histórico</h2>
-        </div>
-      </div>
-
       <div className="exercise-list">
         {activeEntries.map(({ template, log }) => {
           if (!log) return null;
@@ -177,65 +216,75 @@ function WorkoutScreen({
                 </div>
               </div>
 
-              <div className="set-grid">
+              {/* LISTA DE SÉRIES VERTICAL */}
+              <div className="set-list">
                 {log.sets.map((setEntry) => (
                   <div
                     key={`${template.id}-${setEntry.slotIndex}`}
-                    className={`set-card set-card--${setEntry.type}`}
+                    className={`set-row set-row--${setEntry.type}`}
                   >
-                    <span className="set-card__title">
-                      Série {setEntry.slotIndex + 1} · {getSetTypeLabel(setEntry.type)}
-                    </span>
-                    <label>
-                      <span>Kg</span>
-                      <input
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={setEntry.load}
-                        onChange={(e) =>
-                          onSetValueChange(template.id, setEntry.slotIndex, 'load', e.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      <span>Reps</span>
-                      <input
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={setEntry.reps}
-                        onChange={(e) =>
-                          onSetValueChange(template.id, setEntry.slotIndex, 'reps', e.target.value)
-                        }
-                      />
-                    </label>
+                    <div className="set-row__info">
+                      <strong>{setEntry.slotIndex + 1}</strong>
+                      <span className="set-row__type">{getSetTypeLabel(setEntry.type)}</span>
+                    </div>
+                    <div className="set-row__inputs">
+                      <label>
+                        <span>Kg</span>
+                        <input
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={setEntry.load}
+                          onChange={(e) =>
+                            onSetValueChange(template.id, setEntry.slotIndex, 'load', e.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Reps</span>
+                        <input
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={setEntry.reps}
+                          onChange={(e) =>
+                            onSetValueChange(template.id, setEntry.slotIndex, 'reps', e.target.value)
+                          }
+                        />
+                      </label>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <div className="history-strip" aria-label={`Histórico de ${template.name}`}>
-                {appState.weeks.map((week) => {
-                  const workoutLog = week.workoutLogs.find((entry) => entry.workoutId === activeWorkout.id);
-                  const exerciseLog = workoutLog?.exerciseLogs.find(
-                    (entry) => entry.exerciseId === template.id
-                  );
-                  const completedSets =
-                    exerciseLog?.sets.filter((s) => s.load || s.reps) ?? [];
+              {/* HISTÓRICO */}
+              <details className="history-accordion">
+                <summary>Ver histórico completo</summary>
+                <div className="history-accordion-content">
+                  <div className="history-strip" aria-label={`Histórico de ${template.name}`}>
+                    {appState.weeks.map((week) => {
+                      const workoutLog = week.workoutLogs.find((entry) => entry.workoutId === activeWorkout.id);
+                      const exerciseLog = workoutLog?.exerciseLogs.find(
+                        (entry) => entry.exerciseId === template.id
+                      );
+                      const completedSets =
+                        exerciseLog?.sets.filter((s) => s.load || s.reps) ?? [];
 
-                  return (
-                    <div key={`${template.id}-${week.index}`} className="history-chip">
-                      <strong>S{week.index + 1}</strong>
-                      <span>{formatMetric(exerciseLog?.summary.totalLoad ?? null, 0)} kg</span>
-                      <small>
-                        {completedSets.length
-                          ? completedSets
-                              .map((s) => `${s.load || '-'}x${s.reps || '-'}`)
-                              .join(' / ')
-                          : '-'}
-                      </small>
-                    </div>
-                  );
-                })}
-              </div>
+                      return (
+                        <div key={`${template.id}-${week.index}`} className="history-chip">
+                          <strong>S{week.index + 1}</strong>
+                          <span>{formatMetric(exerciseLog?.summary.totalLoad ?? null, 0)} kg</span>
+                          <small>
+                            {completedSets.length
+                              ? completedSets
+                                  .map((s) => `${s.load || '-'}x${s.reps || '-'}`)
+                                  .join(' / ')
+                              : '-'}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </details>
             </article>
           );
         })}

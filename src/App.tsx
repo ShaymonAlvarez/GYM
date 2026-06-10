@@ -801,6 +801,17 @@ function App() {
             saveStatus={saveStatus}
             saveStatusLabel={saveStatusLabel}
             formatMetric={formatMetric}
+            onNavigateToWorkout={() => setActiveScreen('workout')}
+          />
+        );
+
+      case 'workout':
+        return (
+          <WorkoutScreen
+            appState={appState}
+            activeEntries={activeEntries}
+            activeWorkout={activeWorkout}
+            getWeekSummary={getWeekSummary}
             onWeekChange={(weekIndex) => {
               updateState((currentState) => ({
                 ...currentState,
@@ -813,16 +824,6 @@ function App() {
                 activeWorkoutId: workoutId
               }));
             }}
-            getWeekSummary={getWeekSummary}
-          />
-        );
-
-      case 'workout':
-        return (
-          <WorkoutScreen
-            appState={appState}
-            activeEntries={activeEntries}
-            activeWorkout={activeWorkout}
             workoutStartedAt={workoutStartedAt}
             workoutEndedAt={workoutEndedAt}
             workoutElapsedSeconds={workoutElapsedSeconds}

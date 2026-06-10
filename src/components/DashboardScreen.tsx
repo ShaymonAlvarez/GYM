@@ -9,9 +9,7 @@ type DashboardScreenProps = {
   saveStatus: 'saved' | 'saving' | 'dirty';
   saveStatusLabel: string;
   formatMetric: (value: number | null, maxFractionDigits?: number) => string;
-  onWeekChange: (weekIndex: number) => void;
-  onWorkoutChange: (workoutId: string) => void;
-  getWeekSummary: (week: AppState['weeks'][number]) => SummaryMetrics;
+  onNavigateToWorkout: () => void;
 };
 
 function DashboardScreen({
@@ -23,17 +21,19 @@ function DashboardScreen({
   saveStatus,
   saveStatusLabel,
   formatMetric,
-  onWeekChange,
-  onWorkoutChange,
-  getWeekSummary
+  onNavigateToWorkout
 }: DashboardScreenProps) {
   const activeWorkout =
     appState.templates.find((w) => w.id === appState.activeWorkoutId) ?? appState.templates[0];
   const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
 
   return (
-    <div className="screen" key="dashboard">
-      {/* Métricas */}
+    <div className="screen dashboard-screen" key="dashboard">
+      <div className="dashboard-hero">
+        <h2>Olá, pronto para treinar?</h2>
+        <p>Você está na <strong>{activeWeek.label}</strong>, ficha <strong>{activeWorkout.name}</strong>.</p>
+      </div>
+
       <div className="metrics-grid">
         <div className="metric-card metric-card--accent">
           <span className="metric-card__label">Semana</span>
@@ -52,7 +52,6 @@ function DashboardScreen({
         </div>
       </div>
 
-      {/* Barra de progresso */}
       <div className="progress-section">
         <div className="progress-header">
           <div className="progress-header-left">
@@ -66,57 +65,10 @@ function DashboardScreen({
         </div>
       </div>
 
-      {/* Seletor de semana */}
-      <div>
-        <p className="section-label">Semana</p>
-        <div className="section-title">
-          <h2>Período de 6 semanas</h2>
-        </div>
-        <div className="selector-strip" style={{ marginTop: 8 }}>
-          {appState.weeks.map((week) => {
-            const summary = getWeekSummary(week);
-            return (
-              <button
-                key={week.index}
-                className={`week-chip${week.index === appState.activeWeekIndex ? ' week-chip--active' : ''}`}
-                type="button"
-                onClick={() => onWeekChange(week.index)}
-              >
-                <strong>{week.label}</strong>
-                <span>{formatMetric(summary.totalLoad, 0)} kg</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Seletor de treino */}
-      <div>
-        <p className="section-label">Treino</p>
-        <div className="section-title">
-          <h2>{activeWeek.label} — Ficha do dia</h2>
-        </div>
-        <div className="selector-strip" style={{ marginTop: 8 }}>
-          {appState.templates.map((workout) => (
-            <button
-              key={workout.id}
-              className={`workout-chip${workout.id === activeWorkout.id ? ' workout-chip--active' : ''}`}
-              style={{ ['--workout-accent' as string]: workout.accent }}
-              type="button"
-              onClick={() => onWorkoutChange(workout.id)}
-            >
-              <strong>{workout.name}</strong>
-              <span>{workout.subtitle}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Legenda */}
-      <div className="legend-row">
-        <span className="legend-pill legend-pill--yellow">Aquecimento</span>
-        <span className="legend-pill legend-pill--orange">Série séria</span>
-        <span className="legend-pill legend-pill--red">Série difícil</span>
+      <div className="dashboard-cta">
+        <button className="btn btn--primary btn--full btn--huge" onClick={onNavigateToWorkout}>
+          IR PARA O TREINO
+        </button>
       </div>
     </div>
   );
