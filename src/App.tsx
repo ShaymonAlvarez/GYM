@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import PinGate from './components/PinGate';
-import WorkbookSheet from './components/WorkbookSheet';
-import { APP_NAME, SESSION_UNLOCK_KEY, STATIC_PIN } from './config';
+import LoginScreen from './components/LoginScreen';
+import BottomNav from './components/BottomNav';
+import type { ScreenId } from './components/BottomNav';
+import DashboardScreen from './components/DashboardScreen';
+import WorkoutScreen from './components/WorkoutScreen';
+import FeedbackScreen from './components/FeedbackScreen';
+import MediaScreen from './components/MediaScreen';
+import SettingsScreen from './components/SettingsScreen';
+
 import { FEEDBACK_QUESTIONS, normalizeFeedbackState } from './data/feedback';
-import { createSeedAppState } from './data/seedData';
 import sheetLayout from './data/sheetLayout.json';
 import { loadAppState, saveAppState } from './lib/db';
 import {
@@ -19,7 +24,7 @@ import {
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
 import {
   createGymSupabaseClient,
-  getSupabaseConfig,
+
   hasSupabaseConfig,
   hydrateRemotePhotoUrls,
   loadRemoteAppState,
@@ -105,9 +110,8 @@ const formatBytes = (bytes?: number) => {
 
 function App() {
   const [appState, setAppState] = useState<AppState | null>(null);
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [pinValue, setPinValue] = useState('');
-  const [pinError, setPinError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeScreen, setActiveScreen] = useState<ScreenId>('dashboard');
   const [flashMessage, setFlashMessage] = useState('');
   const [isExportingWorkbook, setIsExportingWorkbook] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -121,11 +125,16 @@ function App() {
   const [restDurationSeconds, setRestDurationSeconds] = useState(90);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [supabaseUserEmail, setSupabaseUserEmail] = useState<string | null>(null);
-  const [supabaseEmail, setSupabaseEmail] = useState('');
-  const [supabasePassword, setSupabasePassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginStatus, setLoginStatus] = useState('');
   const [supabaseStatus, setSupabaseStatus] = useState('');
   const [isSupabaseBusy, setIsSupabaseBusy] = useState(false);
+  const [isLoginBusy, setIsLoginBusy] = useState(false);
   const pdfExportRef = useRef<HTMLDivElement | null>(null);
+
+  // Create Supabase client from env vars (always available since .env.local is configured)
   const supabaseClient = useMemo(
     () => createGymSupabaseClient(appState?.supabase),
     [appState?.supabase?.anonKey, appState?.supabase?.projectUrl]
@@ -142,19 +151,15 @@ function App() {
   useEffect(() => {
     let isMounted = true;
 
-    setIsUnlocked(sessionStorage.getItem(SESSION_UNLOCK_KEY) === 'true');
-
     void loadAppState().then((savedState) => {
       if (!isMounted) {
         return;
       }
 
-      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createSeedAppState();
+      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : null;
 
-      setAppState(nextState);
-
-      if (!savedState || !isAppState(savedState)) {
-        void saveAppState(nextState);
+      if (nextState) {
+        setAppState(nextState);
       }
     });
 
@@ -162,6 +167,45 @@ function App() {
       isMounted = false;
     };
   }, []);
+
+  // Check auth state on mount — if user has a valid session, auto-authenticate
+  useEffect(() => {
+    if (!supabaseClient) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    void supabaseClient.auth.getSession().then(async ({ data }) => {
+      if (isMounted && data.session?.user) {
+        setSupabaseUserEmail(data.session.user.email ?? null);
+        setIsAuthenticated(true);
+        // Ensure appState exists
+        const savedState = await loadAppState();
+        if (!isMounted) return;
+        const { createSeedAppState } = await import('./data/seedData');
+        const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createSeedAppState();
+        setAppState(nextState);
+        if (!savedState || !isAppState(savedState)) {
+          void saveAppState(nextState);
+        }
+      }
+    });
+
+    const {
+      data: { subscription }
+    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setSupabaseUserEmail(session?.user.email ?? null);
+      if (!session) {
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabaseClient]);
 
   useEffect(() => {
     if (!appState) {
@@ -192,32 +236,6 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [flashMessage]);
 
-  useEffect(() => {
-    if (!supabaseClient) {
-      setSupabaseUserEmail(null);
-      return undefined;
-    }
-
-    let isMounted = true;
-
-    void supabaseClient.auth.getSession().then(({ data }) => {
-      if (isMounted) {
-        setSupabaseUserEmail(data.session?.user.email ?? null);
-      }
-    });
-
-    const {
-      data: { subscription }
-    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setSupabaseUserEmail(session?.user.email ?? null);
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabaseClient]);
-
   const workbookCellValues = useMemo(
     () => (appState ? buildSheetDisplayValues(appState, workbookLayout, appState.activeWeekIndex) : {}),
     [appState]
@@ -228,78 +246,94 @@ function App() {
     setAppState((currentState) => (currentState ? normalizeAppState(updater(currentState)) : currentState));
   };
 
-  if (!appState) {
-    return (
-      <main className="app-shell">
-        <section className="loading-card">
-          <p className="pin-brand">{APP_NAME}</p>
-          <h1>Carregando planilha...</h1>
-        </section>
-      </main>
-    );
-  }
+  // ═══════════════════════════════════════════
+  // LOGIN HANDLERS
+  // ═══════════════════════════════════════════
 
-  if (!isUnlocked) {
-    return (
-      <PinGate
-        errorMessage={pinError}
-        pinValue={pinValue}
-        onPinChange={(value) => {
-          setPinValue(value);
-          setPinError('');
-        }}
-        onSubmit={(event) => {
-          event.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-          if (pinValue === STATIC_PIN) {
-            sessionStorage.setItem(SESSION_UNLOCK_KEY, 'true');
-            setIsUnlocked(true);
-            setPinValue('');
-            setPinError('');
-            return;
-          }
+    if (!supabaseClient) {
+      setLoginError('Supabase não está configurado. Verifique o .env.local.');
+      return;
+    }
 
-          setPinError('PIN incorreto.');
-        }}
-      />
-    );
-  }
+    setIsLoginBusy(true);
+    setLoginError('');
+    setLoginStatus('');
 
-  const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
-  const activeWorkout =
-    appState.templates.find((workout) => workout.id === appState.activeWorkoutId) ?? appState.templates[0];
-  const activeWorkoutLog =
-    activeWeek.workoutLogs.find((workoutLog) => workoutLog.workoutId === activeWorkout.id) ??
-    activeWeek.workoutLogs[0];
-  const activeWeekSummary = getWeekSummary(activeWeek);
-  const activeWorkoutSummary = getWorkoutSummary(activeWorkoutLog);
-  const activeCompletion = getCompletion(activeWorkoutLog);
-  const activeProgress = activeCompletion.total
-    ? Math.round((activeCompletion.completed / activeCompletion.total) * 100)
-    : 0;
-  const activeEntries = activeWorkout.exercises.map((exercise) => ({
-    template: exercise,
-    log: activeWorkoutLog.exerciseLogs.find((entry) => entry.exerciseId === exercise.id)
-  }));
-  const feedbackState = normalizeFeedbackState(appState.feedback, appState.weeks.length);
-  const activeFeedbackAnswers = feedbackState.weeklyAnswers[appState.activeWeekIndex] ?? [];
-  const activeMedia = (appState.localMedia ?? []).filter(
-    (asset) => asset.weekIndex === appState.activeWeekIndex && asset.workoutId === activeWorkout.id
-  );
-  const workoutElapsedSeconds = workoutStartedAt
-    ? Math.floor(((workoutEndedAt ?? now) - workoutStartedAt) / 1000)
-    : 0;
-  const restRemainingSeconds = restEndsAt ? Math.max(0, Math.ceil((restEndsAt - now) / 1000)) : 0;
+    try {
+      const { error } = await supabaseClient.auth.signInWithPassword({
+        email: loginEmail.trim(),
+        password: loginPassword
+      });
 
-  const saveStatusLabel =
-    saveStatus === 'dirty'
-      ? 'Alteracoes pendentes'
-      : saveStatus === 'saving'
-        ? 'Salvando...'
-        : `Salvo ${formatSavedAt(lastSavedAt)}`;
-  const supabaseConfig = getSupabaseConfig(appState.supabase);
-  const isSupabaseConfigured = hasSupabaseConfig(appState.supabase);
-  const isUsingEnvSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+      if (error) {
+        throw error;
+      }
+
+      setLoginPassword('');
+      setIsAuthenticated(true);
+
+      // Load or create app state after login
+      const savedState = await loadAppState();
+      const { createSeedAppState } = await import('./data/seedData');
+      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createSeedAppState();
+      setAppState(nextState);
+      if (!savedState || !isAppState(savedState)) {
+        void saveAppState(nextState);
+      }
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : 'Não foi possível autenticar.');
+    } finally {
+      setIsLoginBusy(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!supabaseClient) {
+      setLoginError('Supabase não está configurado. Verifique o .env.local.');
+      return;
+    }
+
+    setIsLoginBusy(true);
+    setLoginError('');
+    setLoginStatus('');
+
+    try {
+      const { error } = await supabaseClient.auth.signUp({
+        email: loginEmail.trim(),
+        password: loginPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setLoginPassword('');
+      setLoginStatus('Cadastro criado. Confirme o email se o projeto exigir.');
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : 'Não foi possível criar a conta.');
+    } finally {
+      setIsLoginBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
+    setIsAuthenticated(false);
+    setSupabaseUserEmail(null);
+    setLoginEmail('');
+    setLoginPassword('');
+    setLoginError('');
+    setLoginStatus('');
+  };
+
+  // ═══════════════════════════════════════════
+  // WORKOUT HANDLERS (preserved from original)
+  // ═══════════════════════════════════════════
 
   const updateSetValue = (
     exerciseId: string,
@@ -387,7 +421,7 @@ function App() {
   };
 
   const handleCopyPreviousWeek = () => {
-    if (appState.activeWeekIndex === 0) {
+    if (!appState || appState.activeWeekIndex === 0) {
       return;
     }
 
@@ -407,6 +441,8 @@ function App() {
   };
 
   const handleClearWeek = () => {
+    if (!appState) return;
+
     updateState((currentState) => ({
       ...currentState,
       weeks: currentState.weeks.map((week) =>
@@ -446,6 +482,8 @@ function App() {
   };
 
   const handleSubmitWorkout = async () => {
+    if (!appState) return;
+
     setSaveStatus('saving');
 
     try {
@@ -459,6 +497,8 @@ function App() {
   };
 
   const handleExportWorkbook = async () => {
+    if (!appState) return;
+
     setIsExportingWorkbook(true);
 
     try {
@@ -472,7 +512,7 @@ function App() {
   };
 
   const handleExportPdf = async () => {
-    if (!pdfExportRef.current) {
+    if (!pdfExportRef.current || !appState) {
       return;
     }
 
@@ -489,9 +529,12 @@ function App() {
   };
 
   const handleAddMedia = async (files: FileList | null) => {
-    if (!files?.length) {
+    if (!files?.length || !appState) {
       return;
     }
+
+    const activeWorkout =
+      appState.templates.find((w) => w.id === appState.activeWorkoutId) ?? appState.templates[0];
 
     try {
       const media = await Promise.all(
@@ -541,47 +584,9 @@ function App() {
     }));
   };
 
-  const handleSupabaseAuth = async (mode: 'sign-in' | 'sign-up') => {
-    if (!supabaseClient) {
-      setSupabaseStatus('Configure a URL e a anon key do projeto.');
-      return;
-    }
-
-    setIsSupabaseBusy(true);
-    setSupabaseStatus('');
-
-    try {
-      const authRequest =
-        mode === 'sign-up'
-          ? supabaseClient.auth.signUp({ email: supabaseEmail.trim(), password: supabasePassword })
-          : supabaseClient.auth.signInWithPassword({ email: supabaseEmail.trim(), password: supabasePassword });
-      const { error } = await authRequest;
-
-      if (error) {
-        throw error;
-      }
-
-      setSupabasePassword('');
-      setSupabaseStatus(mode === 'sign-up' ? 'Cadastro criado. Confirme o email se o projeto exigir.' : 'Login conectado.');
-    } catch (error) {
-      setSupabaseStatus(error instanceof Error ? error.message : 'Nao foi possivel autenticar.');
-    } finally {
-      setIsSupabaseBusy(false);
-    }
-  };
-
-  const handleSupabaseSignOut = async () => {
-    if (!supabaseClient) {
-      return;
-    }
-
-    await supabaseClient.auth.signOut();
-    setSupabaseStatus('Sessao encerrada.');
-  };
-
   const uploadPendingPhotos = async (userId: string) => {
-    if (!supabaseClient) {
-      return appState.localMedia ?? [];
+    if (!supabaseClient || !appState) {
+      return appState?.localMedia ?? [];
     }
 
     const {
@@ -606,7 +611,7 @@ function App() {
   };
 
   const handlePushToSupabase = async () => {
-    if (!supabaseClient) {
+    if (!supabaseClient || !appState) {
       setSupabaseStatus('Configure o Supabase antes de sincronizar.');
       return;
     }
@@ -644,7 +649,7 @@ function App() {
   };
 
   const handlePullFromSupabase = async () => {
-    if (!supabaseClient) {
+    if (!supabaseClient || !appState) {
       setSupabaseStatus('Configure o Supabase antes de baixar.');
       return;
     }
@@ -680,659 +685,240 @@ function App() {
     }
   };
 
-  const handleLock = () => {
-    sessionStorage.removeItem(SESSION_UNLOCK_KEY);
-    setIsUnlocked(false);
-    setPinValue('');
-    setPinError('');
+  const handleSupabaseSignOut = async () => {
+    if (!supabaseClient) {
+      return;
+    }
+
+    await supabaseClient.auth.signOut();
+    setSupabaseStatus('Sessão encerrada.');
+  };
+
+  // ═══════════════════════════════════════════
+  // LOADING STATE
+  // ═══════════════════════════════════════════
+
+  if (!isAuthenticated) {
+    return (
+      <LoginScreen
+        email={loginEmail}
+        password={loginPassword}
+        error={loginError}
+        status={loginStatus}
+        isBusy={isLoginBusy}
+        onEmailChange={(value) => {
+          setLoginEmail(value);
+          setLoginError('');
+        }}
+        onPasswordChange={(value) => {
+          setLoginPassword(value);
+          setLoginError('');
+        }}
+        onSignIn={handleLogin}
+        onSignUp={handleSignUp}
+      />
+    );
+  }
+
+  if (!appState) {
+    return (
+      <main className="loading-screen">
+        <div className="loading-spinner" />
+        <p>Carregando dados...</p>
+      </main>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // DERIVED STATE
+  // ═══════════════════════════════════════════
+
+  const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
+  const activeWorkout =
+    appState.templates.find((workout) => workout.id === appState.activeWorkoutId) ?? appState.templates[0];
+  const activeWorkoutLog =
+    activeWeek.workoutLogs.find((workoutLog) => workoutLog.workoutId === activeWorkout.id) ??
+    activeWeek.workoutLogs[0];
+  const activeWeekSummary = getWeekSummary(activeWeek);
+  const activeWorkoutSummary = getWorkoutSummary(activeWorkoutLog);
+  const activeCompletion = getCompletion(activeWorkoutLog);
+  const activeProgress = activeCompletion.total
+    ? Math.round((activeCompletion.completed / activeCompletion.total) * 100)
+    : 0;
+  const activeEntries = activeWorkout.exercises.map((exercise) => ({
+    template: exercise,
+    log: activeWorkoutLog.exerciseLogs.find((entry) => entry.exerciseId === exercise.id)
+  }));
+  const feedbackState = normalizeFeedbackState(appState.feedback, appState.weeks.length);
+  const activeFeedbackAnswers = feedbackState.weeklyAnswers[appState.activeWeekIndex] ?? [];
+  const activeMedia = (appState.localMedia ?? []).filter(
+    (asset) => asset.weekIndex === appState.activeWeekIndex && asset.workoutId === activeWorkout.id
+  );
+  const workoutElapsedSeconds = workoutStartedAt
+    ? Math.floor(((workoutEndedAt ?? now) - workoutStartedAt) / 1000)
+    : 0;
+  const restRemainingSeconds = restEndsAt ? Math.max(0, Math.ceil((restEndsAt - now) / 1000)) : 0;
+
+  const saveStatusLabel =
+    saveStatus === 'dirty'
+      ? 'Alterações pendentes'
+      : saveStatus === 'saving'
+        ? 'Salvando...'
+        : `Salvo ${formatSavedAt(lastSavedAt)}`;
+  const isSupabaseConfigured = hasSupabaseConfig(appState.supabase);
+
+  // ═══════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════
+
+  const renderScreen = () => {
+    switch (activeScreen) {
+      case 'dashboard':
+        return (
+          <DashboardScreen
+            appState={appState}
+            activeWeekSummary={activeWeekSummary}
+            activeWorkoutSummary={activeWorkoutSummary}
+            activeProgress={activeProgress}
+            activeCompletion={activeCompletion}
+            saveStatus={saveStatus}
+            saveStatusLabel={saveStatusLabel}
+            formatMetric={formatMetric}
+            onWeekChange={(weekIndex) => {
+              updateState((currentState) => ({
+                ...currentState,
+                activeWeekIndex: weekIndex
+              }));
+            }}
+            onWorkoutChange={(workoutId) => {
+              updateState((currentState) => ({
+                ...currentState,
+                activeWorkoutId: workoutId
+              }));
+            }}
+            getWeekSummary={getWeekSummary}
+          />
+        );
+
+      case 'workout':
+        return (
+          <WorkoutScreen
+            appState={appState}
+            activeEntries={activeEntries}
+            activeWorkout={activeWorkout}
+            workoutStartedAt={workoutStartedAt}
+            workoutEndedAt={workoutEndedAt}
+            workoutElapsedSeconds={workoutElapsedSeconds}
+            activeExerciseTimer={activeExerciseTimer}
+            now={now}
+            restDurationSeconds={restDurationSeconds}
+            restRemainingSeconds={restRemainingSeconds}
+            saveStatus={saveStatus}
+            formatMetric={formatMetric}
+            formatDuration={formatDuration}
+            getSetTypeLabel={getSetTypeLabel}
+            onSetValueChange={updateSetValue}
+            onWorkoutStart={() => {
+              setWorkoutStartedAt(Date.now());
+              setWorkoutEndedAt(null);
+            }}
+            onWorkoutEnd={() => setWorkoutEndedAt(Date.now())}
+            onExerciseTimerToggle={(exerciseId) => {
+              setActiveExerciseTimer((currentValue) =>
+                currentValue?.exerciseId === exerciseId ? null : { exerciseId, startedAt: Date.now() }
+              );
+            }}
+            onRestDurationChange={setRestDurationSeconds}
+            onRestStart={() => setRestEndsAt(Date.now() + restDurationSeconds * 1000)}
+            onRestReset={() => setRestEndsAt(null)}
+            onSave={() => void handleSubmitWorkout()}
+            onCopyPrevious={handleCopyPreviousWeek}
+            onClearWeek={handleClearWeek}
+          />
+        );
+
+      case 'feedback':
+        return (
+          <FeedbackScreen
+            activeWeekLabel={activeWeek.label}
+            activeWeekIndex={appState.activeWeekIndex}
+            questions={FEEDBACK_QUESTIONS}
+            activeFeedbackAnswers={activeFeedbackAnswers}
+            weeklyComment={feedbackState.weeklyComments[appState.activeWeekIndex] ?? ''}
+            feedbackState={feedbackState}
+            onAnswerChange={updateFeedbackAnswer}
+            onCommentChange={updateFeedbackComment}
+            onPhotoNoteChange={updatePhotoNote}
+          />
+        );
+
+      case 'media':
+        return (
+          <MediaScreen
+            activeMedia={activeMedia}
+            onAddMedia={(files) => void handleAddMedia(files)}
+            onRemoveMedia={handleRemoveMedia}
+            formatBytes={formatBytes}
+          />
+        );
+
+      case 'settings':
+        return (
+          <SettingsScreen
+            appState={appState}
+            supabaseUserEmail={supabaseUserEmail}
+            isSupabaseConfigured={isSupabaseConfigured}
+            isSupabaseBusy={isSupabaseBusy}
+            supabaseStatus={supabaseStatus}
+            isExportingWorkbook={isExportingWorkbook}
+            isExportingPdf={isExportingPdf}
+            isSheetPreviewVisible={isSheetPreviewVisible}
+            workbookCellValues={workbookCellValues}
+            workbookLayout={workbookLayout}
+            feedbackState={feedbackState}
+            feedbackQuestions={FEEDBACK_QUESTIONS}
+            pdfExportRef={pdfExportRef}
+            onToggleSync={(enabled) => {
+              updateState((currentState) => ({
+                ...currentState,
+                supabase: {
+                  enabled,
+                  projectUrl: currentState.supabase?.projectUrl ?? '',
+                  anonKey: currentState.supabase?.anonKey ?? ''
+                }
+              }));
+            }}
+            onPushToSupabase={() => void handlePushToSupabase()}
+            onPullFromSupabase={() => void handlePullFromSupabase()}
+            onSupabaseSignOut={() => void handleSupabaseSignOut()}
+            onExportWorkbook={() => void handleExportWorkbook()}
+            onExportPdf={() => void handleExportPdf()}
+            onToggleSheetPreview={() => setIsSheetPreviewVisible((v) => !v)}
+            onLogout={() => void handleLogout()}
+          />
+        );
+    }
   };
 
   return (
-    <main className="app-shell app-shell--workbook">
+    <main className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="pin-brand">{APP_NAME}</p>
+        <div className="app-header-info">
           <h1>{activeWorkout.name}</h1>
           <p>
-            {activeWeek.label} · {activeCompletion.completed}/{activeCompletion.total} series · {saveStatusLabel}
+            {activeWeek.label} · {activeCompletion.completed}/{activeCompletion.total} séries
           </p>
         </div>
-        <button className="button button--secondary header-lock" type="button" onClick={handleLock}>
-          Travar
-        </button>
+        <div className="app-header-actions">
+          <span className={`save-indicator save-indicator--${saveStatus}`} />
+        </div>
       </header>
 
       {flashMessage ? <div className="toast">{flashMessage}</div> : null}
 
-      <section className="dashboard-panel" aria-label="Resumo da ficha">
-        <article className="metric-card metric-card--accent">
-          <span>Semana</span>
-          <strong>{formatMetric(activeWeekSummary.totalLoad, 0)} kg</strong>
-          <small>{formatMetric(activeWeekSummary.averageReps)} reps media</small>
-        </article>
-        <article className="metric-card">
-          <span>Treino</span>
-          <strong>{formatMetric(activeWorkoutSummary.totalLoad, 0)} kg</strong>
-          <small>{activeWorkout.subtitle}</small>
-        </article>
-        <article className="metric-card">
-          <span>Preenchimento</span>
-          <strong>{activeProgress}%</strong>
-          <small>{activeCompletion.completed} de {activeCompletion.total} series</small>
-        </article>
-      </section>
+      {renderScreen()}
 
-      <section className="timer-panel" id="timer" aria-label="Temporizadores">
-        <article className="timer-card">
-          <span>Treino</span>
-          <strong>{workoutStartedAt ? formatDuration(workoutElapsedSeconds) : '00:00'}</strong>
-          <div className="button-row">
-            <button
-              className="button button--primary"
-              type="button"
-              onClick={() => {
-                setWorkoutStartedAt(Date.now());
-                setWorkoutEndedAt(null);
-              }}
-            >
-              Iniciar
-            </button>
-            <button
-              className="button button--secondary"
-              disabled={!workoutStartedAt || Boolean(workoutEndedAt)}
-              type="button"
-              onClick={() => setWorkoutEndedAt(Date.now())}
-            >
-              Fim
-            </button>
-          </div>
-        </article>
-
-        <article className="timer-card timer-card--rest">
-          <span>Descanso</span>
-          <strong>{formatDuration(restRemainingSeconds)}</strong>
-          <div className="rest-controls">
-            {[60, 90, 120].map((seconds) => (
-              <button
-                key={seconds}
-                className={seconds === restDurationSeconds ? 'mini-chip mini-chip--active' : 'mini-chip'}
-                type="button"
-                onClick={() => setRestDurationSeconds(seconds)}
-              >
-                {seconds}s
-              </button>
-            ))}
-          </div>
-          <div className="button-row">
-            <button
-              className="button button--primary"
-              type="button"
-              onClick={() => setRestEndsAt(Date.now() + restDurationSeconds * 1000)}
-            >
-              Descansar
-            </button>
-            <button className="button button--secondary" type="button" onClick={() => setRestEndsAt(null)}>
-              Zerar
-            </button>
-          </div>
-        </article>
-      </section>
-
-      <section className="progress-panel" aria-label="Progresso do treino">
-        <div>
-          <span className={`save-dot save-dot--${saveStatus}`} />
-          <strong>{saveStatusLabel}</strong>
-        </div>
-        <div className="progress-bar" aria-hidden="true">
-          <span style={{ width: `${activeProgress}%` }} />
-        </div>
-      </section>
-
-      <section className="choice-panel" id="weeks" aria-label="Escolha a semana">
-        <div className="section-heading">
-          <div>
-            <p>Semana</p>
-            <h2>Periodo de 6 semanas</h2>
-          </div>
-        </div>
-        <div className="week-strip">
-          {appState.weeks.map((week) => {
-            const summary = getWeekSummary(week);
-
-            return (
-              <button
-                key={week.index}
-                className={`week-chip${week.index === appState.activeWeekIndex ? ' week-chip--active' : ''}`}
-                type="button"
-                onClick={() => {
-                  updateState((currentState) => ({
-                    ...currentState,
-                    activeWeekIndex: week.index
-                  }));
-                }}
-              >
-                <strong>{week.label}</strong>
-                <span>{formatMetric(summary.totalLoad, 0)} kg</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="choice-panel" aria-label="Escolha o treino">
-        <div className="section-heading">
-          <div>
-            <p>Treino</p>
-            <h2>Ficha do dia</h2>
-          </div>
-        </div>
-        <div className="workout-strip">
-          {appState.templates.map((workout) => (
-            <button
-              key={workout.id}
-              className={`workout-chip${workout.id === activeWorkout.id ? ' workout-chip--active' : ''}`}
-              style={{ ['--workout-accent' as string]: workout.accent }}
-              type="button"
-              onClick={() => {
-                updateState((currentState) => ({
-                  ...currentState,
-                  activeWorkoutId: workout.id
-                }));
-              }}
-            >
-              <strong>{workout.name}</strong>
-              <span>{workout.subtitle}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="legend-panel" aria-label="Cores das series">
-        <span className="legend-pill legend-pill--yellow">Aquecimento</span>
-        <span className="legend-pill legend-pill--orange">Serie seria</span>
-        <span className="legend-pill legend-pill--red">Serie dificil</span>
-      </section>
-
-      <section className="action-panel" aria-label="Acoes da ficha">
-        <button
-          className="button button--primary"
-          disabled={saveStatus === 'saving'}
-          type="button"
-          onClick={() => {
-            void handleSubmitWorkout();
-          }}
-        >
-          {saveStatus === 'saving' ? 'Salvando...' : 'Salvar'}
-        </button>
-        <button
-          className="button button--secondary"
-          disabled={appState.activeWeekIndex === 0}
-          type="button"
-          onClick={handleCopyPreviousWeek}
-        >
-          Copiar anterior
-        </button>
-        <button className="button button--secondary" type="button" onClick={handleClearWeek}>
-          Limpar semana
-        </button>
-        <button
-          className="button button--secondary"
-          disabled={isExportingWorkbook}
-          type="button"
-          onClick={() => {
-            void handleExportWorkbook();
-          }}
-        >
-          {isExportingWorkbook ? 'Excel...' : 'Excel'}
-        </button>
-        <button
-          className="button button--secondary"
-          disabled={isExportingPdf}
-          type="button"
-          onClick={() => {
-            void handleExportPdf();
-          }}
-        >
-          {isExportingPdf ? 'PDF...' : 'PDF'}
-        </button>
-        <button
-          className="button button--secondary"
-          type="button"
-          onClick={() => {
-            setIsSheetPreviewVisible((currentValue) => !currentValue);
-          }}
-        >
-          {isSheetPreviewVisible ? 'Ocultar planilha' : 'Ver planilha'}
-        </button>
-      </section>
-
-      {isSheetPreviewVisible ? (
-        <section className="sheet-preview-panel" aria-label="Previa da planilha Excel">
-          <div className="section-heading">
-            <div>
-              <p>Excel</p>
-              <h2>Conferencia do layout</h2>
-            </div>
-          </div>
-          <div className="sheet-preview-panel__scroller">
-            <WorkbookSheet cellValues={workbookCellValues} layout={workbookLayout} />
-          </div>
-        </section>
-      ) : null}
-
-      <div className="section-heading section-heading--floating" id="sets">
-        <div>
-          <p>Series</p>
-          <h2>Carga, repeticoes e historico</h2>
-        </div>
-      </div>
-
-      <section className="exercise-stack">
-        {activeEntries.map(({ template, log }) => {
-          if (!log) {
-            return null;
-          }
-
-          const exerciseElapsedSeconds =
-            activeExerciseTimer?.exerciseId === template.id
-              ? Math.floor((now - activeExerciseTimer.startedAt) / 1000)
-              : 0;
-
-          return (
-            <article key={template.id} className="exercise-card">
-              <div className="exercise-card__header">
-                <div>
-                  <h3>{template.name}</h3>
-                  <p>
-                    {formatMetric(log.summary.totalLoad, 0)} kg · {formatMetric(log.summary.averageReps)} reps
-                  </p>
-                </div>
-                <div className="exercise-actions">
-                  <button
-                    className="button button--secondary"
-                    type="button"
-                    onClick={() => {
-                      setActiveExerciseTimer((currentValue) =>
-                        currentValue?.exerciseId === template.id ? null : { exerciseId: template.id, startedAt: Date.now() }
-                      );
-                    }}
-                  >
-                    {activeExerciseTimer?.exerciseId === template.id ? `Fim ${formatDuration(exerciseElapsedSeconds)}` : 'Iniciar'}
-                  </button>
-                  {template.videoUrl ? (
-                    <a className="video-link" href={template.videoUrl} rel="noreferrer" target="_blank">
-                      Video
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="set-grid">
-                {log.sets.map((setEntry) => (
-                  <div
-                    key={`${template.id}-${setEntry.slotIndex}`}
-                    className={`set-card set-card--${setEntry.type}`}
-                  >
-                    <span className="set-card__title">
-                      Serie {setEntry.slotIndex + 1} · {getSetTypeLabel(setEntry.type)}
-                    </span>
-                    <label>
-                      <span>Kg</span>
-                      <input
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={setEntry.load}
-                        onChange={(event) =>
-                          updateSetValue(template.id, setEntry.slotIndex, 'load', event.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      <span>Reps</span>
-                      <input
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={setEntry.reps}
-                        onChange={(event) =>
-                          updateSetValue(template.id, setEntry.slotIndex, 'reps', event.target.value)
-                        }
-                      />
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              <div className="history-strip" aria-label={`Historico de ${template.name}`}>
-                {appState.weeks.map((week) => {
-                  const workoutLog = week.workoutLogs.find((entry) => entry.workoutId === activeWorkout.id);
-                  const exerciseLog = workoutLog?.exerciseLogs.find((entry) => entry.exerciseId === template.id);
-                  const completedSets = exerciseLog?.sets.filter((setEntry) => setEntry.load || setEntry.reps) ?? [];
-
-                  return (
-                    <div key={`${template.id}-${week.index}`} className="history-chip">
-                      <strong>S{week.index + 1}</strong>
-                      <span>{formatMetric(exerciseLog?.summary.totalLoad ?? null, 0)} kg</span>
-                      <small>
-                        {completedSets.length
-                          ? completedSets.map((setEntry) => `${setEntry.load || '-'}x${setEntry.reps || '-'}`).join(' / ')
-                          : '-'}
-                      </small>
-                    </div>
-                  );
-                })}
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="feedback-panel" id="feedback" aria-label="Feedback do periodo">
-        <div className="section-heading">
-          <div>
-            <p>Feedback</p>
-            <h2>{activeWeek.label}</h2>
-          </div>
-        </div>
-
-        <div className="feedback-grid">
-          {FEEDBACK_QUESTIONS.map((question, questionIndex) => (
-            <label key={question.rowNumber} className="feedback-field">
-              <span>{question.text}</span>
-              <select
-                value={activeFeedbackAnswers[questionIndex] ?? ''}
-                onChange={(event) => updateFeedbackAnswer(questionIndex, event.target.value)}
-              >
-                <option value="">Selecione</option>
-                {question.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-
-        <label className="feedback-field feedback-field--wide">
-          <span>Comentarios da {activeWeek.label}</span>
-          <textarea
-            rows={4}
-            value={feedbackState.weeklyComments[appState.activeWeekIndex] ?? ''}
-            onChange={(event) => updateFeedbackComment(event.target.value)}
-          />
-        </label>
-
-        {appState.activeWeekIndex === 5 ? (
-          <label className="feedback-field feedback-field--wide">
-            <span>Semana 6 fotos</span>
-            <textarea
-              rows={3}
-              value={feedbackState.photoNote}
-              onChange={(event) => updatePhotoNote(event.target.value)}
-            />
-          </label>
-        ) : null}
-      </section>
-
-      <section className="media-panel" id="media" aria-label="Midia local">
-        <div className="section-heading">
-          <div>
-            <p>Midia local</p>
-            <h2>Fotos e videos do treino</h2>
-          </div>
-        </div>
-        <label className="upload-box">
-          <input
-            accept="image/*,video/*"
-            multiple
-            type="file"
-            onChange={(event) => {
-              void handleAddMedia(event.target.files);
-              event.currentTarget.value = '';
-            }}
-          />
-          <span>Adicionar foto ou video</span>
-        </label>
-
-        <div className="media-grid">
-          {activeMedia.map((asset) => (
-            <article key={asset.id} className="media-card">
-              {asset.type === 'video' ? (
-                <video controls src={asset.dataUrl} />
-              ) : (
-                <img alt={asset.name} src={asset.remoteUrl ?? asset.dataUrl} />
-              )}
-              <div>
-                <strong>{asset.name}</strong>
-                {asset.type === 'photo' && asset.optimizedBytes ? (
-                  <small>
-                    {formatBytes(asset.originalBytes)} para {formatBytes(asset.optimizedBytes)}
-                  </small>
-                ) : null}
-                <button className="mini-chip" type="button" onClick={() => handleRemoveMedia(asset.id)}>
-                  Remover
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="sync-panel" aria-label="Supabase">
-        <div className="section-heading">
-          <div>
-            <p>Supabase</p>
-            <h2>Auth, dados e fotos</h2>
-          </div>
-        </div>
-
-        <div className={`sync-status${isSupabaseConfigured ? ' sync-status--ready' : ''}`}>
-          <strong>{isSupabaseConfigured ? 'Configurado' : 'Nao configurado'}</strong>
-          <span>
-            {supabaseUserEmail
-              ? `Conectado como ${supabaseUserEmail}`
-              : isSupabaseConfigured
-                ? 'Entre para sincronizar dados e fotos.'
-                : 'Informe URL e anon key ou crie um arquivo .env.local.'}
-          </span>
-        </div>
-
-        <label className="switch-row">
-          <input
-            checked={appState.supabase?.enabled ?? false}
-            type="checkbox"
-            onChange={(event) =>
-              updateState((currentState) => ({
-                ...currentState,
-                supabase: {
-                  enabled: event.target.checked,
-                  projectUrl: currentState.supabase?.projectUrl ?? '',
-                  anonKey: currentState.supabase?.anonKey ?? ''
-                }
-              }))
-            }
-          />
-          <span>Sincronizar dados do app e fotos otimizadas; videos ficam somente neste dispositivo</span>
-        </label>
-
-        <div className="sync-grid">
-          <label className="feedback-field">
-            <span>Project URL</span>
-            <input
-              disabled={isUsingEnvSupabase}
-              placeholder="https://seu-projeto.supabase.co"
-              value={appState.supabase?.projectUrl ?? ''}
-              onChange={(event) =>
-                updateState((currentState) => ({
-                  ...currentState,
-                  supabase: {
-                    enabled: currentState.supabase?.enabled ?? false,
-                    projectUrl: event.target.value,
-                    anonKey: currentState.supabase?.anonKey ?? ''
-                  }
-                }))
-              }
-            />
-          </label>
-          <label className="feedback-field">
-            <span>Anon key</span>
-            <input
-              disabled={isUsingEnvSupabase}
-              placeholder={isUsingEnvSupabase ? 'Carregada do .env.local' : 'eyJ...'}
-              type="password"
-              value={appState.supabase?.anonKey ?? ''}
-              onChange={(event) =>
-                updateState((currentState) => ({
-                  ...currentState,
-                  supabase: {
-                    enabled: currentState.supabase?.enabled ?? false,
-                    projectUrl: currentState.supabase?.projectUrl ?? '',
-                    anonKey: event.target.value
-                  }
-                }))
-              }
-            />
-          </label>
-        </div>
-
-        <div className="auth-grid">
-          <label className="feedback-field">
-            <span>Email</span>
-            <input
-              autoComplete="email"
-              inputMode="email"
-              type="email"
-              value={supabaseEmail}
-              onChange={(event) => setSupabaseEmail(event.target.value)}
-            />
-          </label>
-          <label className="feedback-field">
-            <span>Senha</span>
-            <input
-              autoComplete="current-password"
-              type="password"
-              value={supabasePassword}
-              onChange={(event) => setSupabasePassword(event.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="sync-actions">
-          <button
-            className="button button--primary"
-            disabled={!isSupabaseConfigured || isSupabaseBusy || Boolean(supabaseUserEmail)}
-            type="button"
-            onClick={() => {
-              void handleSupabaseAuth('sign-in');
-            }}
-          >
-            Entrar
-          </button>
-          <button
-            className="button button--secondary"
-            disabled={!isSupabaseConfigured || isSupabaseBusy || Boolean(supabaseUserEmail)}
-            type="button"
-            onClick={() => {
-              void handleSupabaseAuth('sign-up');
-            }}
-          >
-            Criar conta
-          </button>
-          <button
-            className="button button--secondary"
-            disabled={!supabaseUserEmail || isSupabaseBusy}
-            type="button"
-            onClick={() => {
-              void handlePushToSupabase();
-            }}
-          >
-            Enviar agora
-          </button>
-          <button
-            className="button button--secondary"
-            disabled={!supabaseUserEmail || isSupabaseBusy}
-            type="button"
-            onClick={() => {
-              void handlePullFromSupabase();
-            }}
-          >
-            Baixar dados
-          </button>
-          <button
-            className="button button--ghost"
-            disabled={!supabaseUserEmail || isSupabaseBusy}
-            type="button"
-            onClick={() => {
-              void handleSupabaseSignOut();
-            }}
-          >
-            Sair
-          </button>
-        </div>
-
-        {supabaseStatus ? <p className="sync-message">{supabaseStatus}</p> : null}
-        <p className="sync-note">
-          Fotos sao redimensionadas para ate 1800px e salvas em WebP/JPEG de alta qualidade. Videos nao sao enviados.
-          URL ativa: {supabaseConfig.projectUrl || 'sem URL'}.
-        </p>
-      </section>
-
-      <nav className="bottom-tabs" aria-label="Navegacao principal">
-        <a href="#weeks">Semanas</a>
-        <a href="#timer">Timer</a>
-        <a href="#sets">Series</a>
-        <a href="#feedback">Feedback</a>
-        <a href="#media">Midia</a>
-      </nav>
-
-      <div className="sheet-capture-surface" aria-hidden="true">
-        <div ref={pdfExportRef} className="pdf-export-document">
-          <section className="pdf-page">
-            <h2>Ficha de cargas - {activeWeek.label}</h2>
-            <WorkbookSheet cellValues={workbookCellValues} layout={workbookLayout} />
-          </section>
-          <section className="pdf-page">
-            <h2>Feedback do periodo</h2>
-            <table className="pdf-table">
-              <thead>
-                <tr>
-                  <th>Pergunta</th>
-                  {appState.weeks.map((week) => (
-                    <th key={week.index}>{week.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {FEEDBACK_QUESTIONS.map((question, questionIndex) => (
-                  <tr key={question.rowNumber}>
-                    <td>{question.text}</td>
-                    {appState.weeks.map((week) => (
-                      <td key={week.index}>{feedbackState.weeklyAnswers[week.index]?.[questionIndex] ?? ''}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-          <section className="pdf-page">
-            <h2>Feedback comentarios</h2>
-            <table className="pdf-table pdf-table--comments">
-              <tbody>
-                {appState.weeks.map((week) => (
-                  <tr key={week.index}>
-                    <th>{week.label}</th>
-                    <td>{feedbackState.weeklyComments[week.index] ?? ''}</td>
-                  </tr>
-                ))}
-                <tr>
-                  <th>Semana 6 fotos</th>
-                  <td>{feedbackState.photoNote}</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-        </div>
-      </div>
+      <BottomNav activeScreen={activeScreen} onNavigate={setActiveScreen} />
     </main>
   );
 }
