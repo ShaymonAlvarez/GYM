@@ -23,7 +23,25 @@ export const hasSupabaseConfig = (settings?: SupabaseSettings) => {
   return Boolean(config.projectUrl && config.anonKey);
 };
 
+// Singleton client created from env vars — always available for auth
+const envConfig = getSupabaseConfig();
+export const supabaseSingleton: GymSupabaseClient | null =
+  envConfig.projectUrl && envConfig.anonKey
+    ? createClient(envConfig.projectUrl, envConfig.anonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      })
+    : null;
+
 export const createGymSupabaseClient = (settings?: SupabaseSettings): GymSupabaseClient | null => {
+  // Always prefer the singleton if env vars are configured
+  if (supabaseSingleton) {
+    return supabaseSingleton;
+  }
+
   const config = getSupabaseConfig(settings);
 
   if (!config.projectUrl || !config.anonKey) {

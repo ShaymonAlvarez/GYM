@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import LoginScreen from './components/LoginScreen';
 import BottomNav from './components/BottomNav';
 import type { ScreenId } from './components/BottomNav';
@@ -23,8 +23,7 @@ import {
 } from './lib/state';
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
 import {
-  createGymSupabaseClient,
-
+  supabaseSingleton,
   hasSupabaseConfig,
   hydrateRemotePhotoUrls,
   loadRemoteAppState,
@@ -134,11 +133,8 @@ function App() {
   const [isLoginBusy, setIsLoginBusy] = useState(false);
   const pdfExportRef = useRef<HTMLDivElement | null>(null);
 
-  // Create Supabase client from env vars (always available since .env.local is configured)
-  const supabaseClient = useMemo(
-    () => createGymSupabaseClient(appState?.supabase),
-    [appState?.supabase?.anonKey, appState?.supabase?.projectUrl]
-  );
+  // Use the singleton Supabase client — always available since .env.local is configured
+  const supabaseClient = supabaseSingleton;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
