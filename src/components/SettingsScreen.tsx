@@ -30,6 +30,7 @@ type SettingsScreenProps = {
   onExportWorkbook: () => void;
   onExportPdf: () => void;
   onToggleSheetPreview: () => void;
+  onChangeTheme: (theme: 'light' | 'dark' | 'system') => void;
   onLogout: () => void;
 };
 
@@ -54,6 +55,7 @@ function SettingsScreen({
   onExportWorkbook,
   onExportPdf,
   onToggleSheetPreview,
+  onChangeTheme,
   onLogout
 }: SettingsScreenProps) {
   const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
@@ -92,6 +94,34 @@ function SettingsScreen({
               Desconectar conta
             </button>
           ) : null}
+        </div>
+
+        {/* Aparência */}
+        <div className="settings-card">
+          <span className="settings-card__title">Aparência</span>
+          <div className="settings-actions">
+            <button
+              className={`btn btn--sm ${appState.theme === 'dark' ? 'btn--primary' : 'btn--secondary'}`}
+              type="button"
+              onClick={() => onChangeTheme('dark')}
+            >
+              Escuro
+            </button>
+            <button
+              className={`btn btn--sm ${appState.theme === 'light' ? 'btn--primary' : 'btn--secondary'}`}
+              type="button"
+              onClick={() => onChangeTheme('light')}
+            >
+              Claro
+            </button>
+            <button
+              className={`btn btn--sm ${appState.theme === 'system' || !appState.theme ? 'btn--primary' : 'btn--secondary'}`}
+              type="button"
+              onClick={() => onChangeTheme('system')}
+            >
+              Sistema
+            </button>
+          </div>
         </div>
 
         {/* Sincronização */}

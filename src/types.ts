@@ -90,6 +90,7 @@ export type AppState = {
   feedback?: FeedbackState;
   localMedia?: LocalMediaAsset[];
   supabase?: SupabaseSettings;
+  theme?: 'light' | 'dark' | 'system';
 };
 
 export type SummaryMetrics = ExerciseSummary;

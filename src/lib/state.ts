@@ -218,7 +218,8 @@ export const normalizeAppState = (state: AppState): AppState => {
       enabled: state.supabase?.enabled ?? false,
       projectUrl: state.supabase?.projectUrl ?? '',
       anonKey: state.supabase?.anonKey ?? ''
-    }
+    },
+    theme: state.theme ?? 'dark'
   };
 };
 

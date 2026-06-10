@@ -25,6 +25,7 @@ export const hasSupabaseConfig = (settings?: SupabaseSettings) => {
 
 // Singleton client created from env vars — always available for auth
 const envConfig = getSupabaseConfig();
+console.log('[Supabase Debug]', { url: envConfig.projectUrl ? 'SET' : 'EMPTY', key: envConfig.anonKey ? 'SET' : 'EMPTY', rawUrl: import.meta.env.VITE_SUPABASE_URL, rawKey: typeof import.meta.env.VITE_SUPABASE_ANON_KEY });
 export const supabaseSingleton: GymSupabaseClient | null =
   envConfig.projectUrl && envConfig.anonKey
     ? createClient(envConfig.projectUrl, envConfig.anonKey, {

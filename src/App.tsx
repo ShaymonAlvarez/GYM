@@ -232,6 +232,27 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [flashMessage]);
 
+  useEffect(() => {
+    const theme = appState?.theme ?? 'dark'; // dark is the default from our redesign
+    const root = document.documentElement;
+
+    if (theme === 'system') {
+      const isSystemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+      root.setAttribute('data-theme', isSystemLight ? 'light' : 'dark');
+      
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+      const listener = (e: MediaQueryListEvent) => {
+        if (appState?.theme === 'system') {
+          root.setAttribute('data-theme', e.matches ? 'light' : 'dark');
+        }
+      };
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    } else {
+      root.setAttribute('data-theme', theme);
+    }
+  }, [appState?.theme]);
+
   const workbookCellValues = useMemo(
     () => (appState ? buildSheetDisplayValues(appState, workbookLayout, appState.activeWeekIndex) : {}),
     [appState]
@@ -890,6 +911,7 @@ function App() {
             onExportWorkbook={() => void handleExportWorkbook()}
             onExportPdf={() => void handleExportPdf()}
             onToggleSheetPreview={() => setIsSheetPreviewVisible((v) => !v)}
+            onChangeTheme={(theme) => updateState((s) => ({ ...s, theme }))}
             onLogout={() => void handleLogout()}
           />
         );
