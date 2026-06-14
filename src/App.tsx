@@ -414,7 +414,10 @@ function App() {
     try {
       const { error } = await supabaseClient.auth.signUp({
         email: loginEmail.trim(),
-        password: loginPassword
+        password: loginPassword,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
       });
 
       if (error) throw error;
