@@ -2869,8 +2869,8 @@ a {
    ═══════════════════════════════════════════ */
 
 .exercise-reset-btn {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
