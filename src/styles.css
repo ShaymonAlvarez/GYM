@@ -1112,29 +1112,25 @@ a {
 .set-row__tools {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-left: auto;
-  flex: 1;
-  min-width: 148px;
+  flex-shrink: 0;
 }
 
 .set-timer-btn {
+  width: 36px;
+  height: 36px;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  flex: 1;
-  padding: 6px 10px;
+  padding: 0;
   border-radius: var(--radius-sm);
   border: 1px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.75rem;
-  font-weight: 800;
   cursor: pointer;
   transition: all var(--transition-fast);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .set-timer-btn:hover {
@@ -2574,10 +2570,6 @@ a {
   .exercise-actions {
     width: 100%;
   }
-
-  .exercise-actions .btn {
-    flex: 1;
-  }
 }
 
 .set-clear-btn {
@@ -2879,11 +2871,17 @@ a {
 .exercise-reset-btn {
   width: 26px;
   height: 26px;
-  min-height: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
-  color: var(--text-tertiary);
-  border-color: var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .exercise-reset-btn:hover {

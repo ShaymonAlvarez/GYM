@@ -501,7 +501,7 @@ function WorkoutScreen({
                 </div>
                 <div className="exercise-actions">
                   <button
-                    className="btn btn--ghost btn--sm exercise-reset-btn"
+                    className="exercise-reset-btn"
                     type="button"
                     title="Zerar este exercício"
                     onClick={() => onClearExercise(template.id)}
@@ -573,6 +573,7 @@ function WorkoutScreen({
                               <button
                                 className={`set-timer-btn${isThisSetActive && !isThisSetPaused ? ' set-timer-btn--running' : ''}${isThisSetPaused ? ' set-timer-btn--paused' : ''}${isThisSetResting ? ' set-timer-btn--resting' : ''}`}
                                 type="button"
+                                title={isThisSetResting ? 'Finalizar descanso' : isThisSetActive && !isThisSetPaused ? 'Pausar série' : isThisSetPaused ? 'Retomar série' : 'Iniciar série'}
                                 onClick={() =>
                                   isThisSetResting
                                     ? onFinishRest()
@@ -580,13 +581,11 @@ function WorkoutScreen({
                                 }
                               >
                                 {isThisSetResting ? (
-                                  <span>💤 {formatDuration(restRemainingSeconds)}</span>
+                                  <span style={{ fontSize: '1rem', lineHeight: 1 }}>💤</span>
                                 ) : isThisSetActive && !isThisSetPaused ? (
-                                  <><PauseIcon /><span>{formatDuration(setElapsedSeconds)}</span></>
-                                ) : isThisSetPaused ? (
-                                  <><PlayIcon /><span>Retomar {formatDuration(setElapsedSeconds)}</span></>
+                                  <PauseIcon />
                                 ) : (
-                                  <><PlayIcon /><span>Iniciar</span></>
+                                  <PlayIcon />
                                 )}
                               </button>
                               <button
