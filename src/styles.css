@@ -908,7 +908,7 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 16px 0;
+  padding: 16px;
 }
 
 .exercise-card__header h3 {
