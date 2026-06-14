@@ -431,7 +431,25 @@ function App() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const msg = error.message.toLowerCase();
+        // User exists but may not have confirmed — resend confirmation email
+        if (msg.includes('user already registered') || msg.includes('already been registered')) {
+          const { error: resendError } = await supabaseClient.auth.resend({
+            type: 'signup',
+            email: loginEmail.trim(),
+            options: { emailRedirectTo: window.location.origin }
+          });
+          if (resendError) {
+            setLoginError('Este email já possui uma conta. Tente fazer login.');
+          } else {
+            setLoginPassword('');
+            setLoginStatus('Email de confirmação reenviado. Verifique sua caixa de entrada.');
+          }
+          return;
+        }
+        throw error;
+      }
 
       setLoginPassword('');
       setLoginStatus('Conta criada! Verifique seu email para confirmar o cadastro.');
