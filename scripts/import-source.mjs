@@ -498,7 +498,30 @@ const extractSheetLayout = async () => {
   };
 };
 
+const fileExists = async (filePath) => {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const main = async () => {
+  // Source files (xlsx workbook + catalog PDF) are local dev assets not committed
+  // to git. The generated JSON (src/data/importedProgram.json, sheetLayout.json)
+  // IS committed. On CI/deploy (e.g. Render) the source files are absent, so we
+  // skip regeneration and build from the committed JSON instead of failing.
+  const hasWorkbook = await fileExists(WORKBOOK_PATH);
+  const hasCatalog = await fileExists(CATALOG_PATH);
+
+  if (!hasWorkbook || !hasCatalog) {
+    console.log(
+      '[import:source] Source files not found — using committed src/data/*.json. Skipping regeneration.'
+    );
+    return;
+  }
+
   const workouts = parseWorkoutGroups();
   const catalogMap = await readCatalogLinks();
   const layout = await extractSheetLayout();
