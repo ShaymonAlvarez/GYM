@@ -177,28 +177,39 @@ function App() {
 
     let isMounted = true;
 
-    void supabaseClient.auth.getSession().then(async ({ data }) => {
-      if (isMounted && data.session?.user) {
-        setSupabaseUserEmail(data.session.user.email ?? null);
-        setIsAuthenticated(true);
-        // Ensure appState exists
-        const savedState = await loadAppState();
-        if (!isMounted) return;
-        const { createEmptyAppState } = await import('./data/seedData');
-        const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
-        setAppState(nextState);
-        if (!savedState || !isAppState(savedState)) {
-          void saveAppState(nextState);
-        }
+    const loadAndAuth = async (email: string | null | undefined) => {
+      if (!isMounted) return;
+      setSupabaseUserEmail(email ?? null);
+      setIsAuthenticated(true);
+      const savedState = await loadAppState();
+      if (!isMounted) return;
+      const { createEmptyAppState } = await import('./data/seedData');
+      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
+      // Don't overwrite already-loaded state (e.g. if both getSession + SIGNED_IN fire)
+      setAppState((prev) => prev ?? nextState);
+      if (!savedState || !isAppState(savedState)) {
+        void saveAppState(nextState);
+      }
+    };
+
+    // Initial session check (handles page refresh with existing session)
+    void supabaseClient.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        void loadAndAuth(data.session.user.email);
       }
     });
 
+    // Handle auth state changes — including email confirmation redirect (SIGNED_IN)
     const {
       data: { subscription }
-    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setSupabaseUserEmail(session?.user.email ?? null);
+    } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (!session) {
         setIsAuthenticated(false);
+        setSupabaseUserEmail(null);
+        return;
+      }
+      if (event === 'SIGNED_IN') {
+        void loadAndAuth(session.user.email);
       }
     });
 
