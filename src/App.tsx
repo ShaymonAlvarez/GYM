@@ -423,7 +423,7 @@ function App() {
     setLoginStatus('');
 
     try {
-      const { error } = await supabaseClient.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email: loginEmail.trim(),
         password: loginPassword,
         options: {
@@ -433,22 +433,31 @@ function App() {
 
       if (error) {
         const msg = error.message.toLowerCase();
-        // User exists but may not have confirmed — resend confirmation email
         if (msg.includes('user already registered') || msg.includes('already been registered')) {
-          const { error: resendError } = await supabaseClient.auth.resend({
+          // Explicit error path (enumeration protection disabled)
+          await supabaseClient.auth.resend({
             type: 'signup',
             email: loginEmail.trim(),
             options: { emailRedirectTo: window.location.origin }
           });
-          if (resendError) {
-            setLoginError('Este email já possui uma conta. Tente fazer login.');
-          } else {
-            setLoginPassword('');
-            setLoginStatus('Email de confirmação reenviado. Verifique sua caixa de entrada.');
-          }
+          setLoginPassword('');
+          setLoginStatus('Email de confirmação reenviado. Verifique sua caixa de entrada.');
           return;
         }
         throw error;
+      }
+
+      // data.user === null means enumeration protection hid the "already exists" error.
+      // Attempt resend so the user gets a working link.
+      if (!data.user) {
+        await supabaseClient.auth.resend({
+          type: 'signup',
+          email: loginEmail.trim(),
+          options: { emailRedirectTo: window.location.origin }
+        });
+        setLoginPassword('');
+        setLoginStatus('Se este email ainda não foi confirmado, um novo link foi enviado. Verifique sua caixa de entrada.');
+        return;
       }
 
       setLoginPassword('');
