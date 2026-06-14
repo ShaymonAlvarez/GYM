@@ -111,7 +111,7 @@ function SettingsScreen({
               ? `Conectado como ${supabaseUserEmail}`
               : isSupabaseConfigured
                 ? 'Faça login para sincronizar.'
-                : 'Supabase não configurado.'}
+                : 'Sincronização indisponível.'}
           </div>
 
           {supabaseUserEmail ? (

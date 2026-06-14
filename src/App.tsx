@@ -333,11 +333,37 @@ function App() {
   // LOGIN HANDLERS
   // ═══════════════════════════════════════════
 
+  const friendlyAuthError = (error: unknown): string => {
+    const msg = error instanceof Error ? error.message.toLowerCase() : '';
+    if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+      return 'Email ou senha incorretos.';
+    }
+    if (msg.includes('email not confirmed')) {
+      return 'Confirme seu email antes de entrar. Verifique a caixa de entrada.';
+    }
+    if (msg.includes('user already registered') || msg.includes('already been registered')) {
+      return 'Este email já possui uma conta. Tente entrar.';
+    }
+    if (msg.includes('password should be at least') || msg.includes('weak password')) {
+      return 'A senha deve ter pelo menos 6 caracteres.';
+    }
+    if (msg.includes('invalid email') || msg.includes('unable to validate email')) {
+      return 'Endereço de email inválido.';
+    }
+    if (msg.includes('too many requests') || msg.includes('rate limit')) {
+      return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+    }
+    if (msg.includes('network') || msg.includes('fetch')) {
+      return 'Sem conexão com a internet. Verifique sua rede.';
+    }
+    return 'Algo deu errado. Tente novamente.';
+  };
+
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!supabaseClient) {
-      setLoginError('Supabase não está configurado. Verifique o .env.local.');
+      setLoginError('Serviço temporariamente indisponível. Tente novamente em instantes.');
       return;
     }
 
@@ -351,14 +377,11 @@ function App() {
         password: loginPassword
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setLoginPassword('');
       setIsAuthenticated(true);
 
-      // Load or create app state after login
       const savedState = await loadAppState();
       const { createEmptyAppState } = await import('./data/seedData');
       const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
@@ -367,7 +390,7 @@ function App() {
         void saveAppState(nextState);
       }
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : 'Não foi possível autenticar.');
+      setLoginError(friendlyAuthError(error));
     } finally {
       setIsLoginBusy(false);
     }
@@ -375,7 +398,16 @@ function App() {
 
   const handleSignUp = async () => {
     if (!supabaseClient) {
-      setLoginError('Supabase não está configurado. Verifique o .env.local.');
+      setLoginError('Serviço temporariamente indisponível. Tente novamente em instantes.');
+      return;
+    }
+
+    if (!loginEmail.trim()) {
+      setLoginError('Informe seu email.');
+      return;
+    }
+    if (loginPassword.length < 6) {
+      setLoginError('A senha deve ter pelo menos 6 caracteres.');
       return;
     }
 
@@ -389,14 +421,12 @@ function App() {
         password: loginPassword
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setLoginPassword('');
-      setLoginStatus('Cadastro criado. Confirme o email se o projeto exigir.');
+      setLoginStatus('Conta criada! Verifique seu email para confirmar o cadastro.');
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : 'Não foi possível criar a conta.');
+      setLoginError(friendlyAuthError(error));
     } finally {
       setIsLoginBusy(false);
     }
@@ -932,7 +962,7 @@ function App() {
 
   const handlePullFromSupabase = async () => {
     if (!supabaseClient || !appState) {
-      setSupabaseStatus('Configure o Supabase antes de baixar.');
+      setSupabaseStatus('Sincronização indisponível. Verifique sua conexão.');
       return;
     }
 
@@ -961,7 +991,7 @@ function App() {
       setSaveStatus('saved');
       setSupabaseStatus('Dados baixados. Videos locais foram preservados neste dispositivo.');
     } catch (error) {
-      setSupabaseStatus(error instanceof Error ? error.message : 'Falha ao baixar do Supabase.');
+      setSupabaseStatus('Não foi possível baixar os dados. Verifique sua conexão.');
     } finally {
       setIsSupabaseBusy(false);
     }
