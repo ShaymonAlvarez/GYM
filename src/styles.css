@@ -1122,14 +1122,14 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   flex: 1;
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 800;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -1547,7 +1547,33 @@ a {
 .media-card__actions {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+}
+
+.media-icon-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.media-icon-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.media-icon-btn--danger:hover {
+  color: var(--red-text);
+  border-color: var(--red-border);
+  background: var(--danger-bg);
 }
 
 .media-card__thumb {
@@ -2851,10 +2877,13 @@ a {
    ═══════════════════════════════════════════ */
 
 .exercise-reset-btn {
-  padding: 6px 8px;
-  min-height: 32px;
+  width: 26px;
+  height: 26px;
+  min-height: unset;
+  padding: 0;
   color: var(--text-tertiary);
   border-color: var(--border);
+  border-radius: var(--radius-sm);
 }
 
 .exercise-reset-btn:hover {

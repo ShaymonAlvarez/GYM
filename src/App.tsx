@@ -28,8 +28,6 @@ import { parseWorkoutPdf } from './lib/pdfParser';
 import {
   supabaseSingleton,
   hasSupabaseConfig,
-  hydrateRemotePhotoUrls,
-  loadRemoteAppState,
   deleteRemoteAppState,
   uploadPhotoAsset
 } from './lib/supabase';
@@ -127,8 +125,6 @@ function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginStatus, setLoginStatus] = useState('');
-  const [supabaseStatus, setSupabaseStatus] = useState('');
-  const [isSupabaseBusy, setIsSupabaseBusy] = useState(false);
   const [isLoginBusy, setIsLoginBusy] = useState(false);
   const pdfExportRef = useRef<HTMLDivElement | null>(null);
 
@@ -960,50 +956,9 @@ function App() {
     }));
   };
 
-  const handlePullFromSupabase = async () => {
-    if (!supabaseClient || !appState) {
-      setSupabaseStatus('Sincronização indisponível. Verifique sua conexão.');
-      return;
-    }
-
-    setIsSupabaseBusy(true);
-    setSupabaseStatus('Baixando dados...');
-
-    try {
-      const remoteState = await loadRemoteAppState(supabaseClient);
-
-      if (!remoteState) {
-        setSupabaseStatus('Nenhum estado salvo para este usuario.');
-        return;
-      }
-
-      const hydratedState = await hydrateRemotePhotoUrls(supabaseClient, remoteState);
-      const localVideos = (appState.localMedia ?? []).filter((asset) => asset.type === 'video');
-      const nextState = normalizeAppState({
-        ...hydratedState,
-        supabase: appState.supabase,
-        localMedia: [...(hydratedState.localMedia ?? []), ...localVideos]
-      });
-
-      setAppState(nextState);
-      await saveAppState(nextState);
-      setLastSavedAt(new Date());
-      setSaveStatus('saved');
-      setSupabaseStatus('Dados baixados. Videos locais foram preservados neste dispositivo.');
-    } catch (error) {
-      setSupabaseStatus('Não foi possível baixar os dados. Verifique sua conexão.');
-    } finally {
-      setIsSupabaseBusy(false);
-    }
-  };
-
   const handleSupabaseSignOut = async () => {
-    if (!supabaseClient) {
-      return;
-    }
-
+    if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
-    setSupabaseStatus('Sessão encerrada.');
   };
 
   // ═══════════════════════════════════════════
@@ -1243,8 +1198,6 @@ function App() {
             appState={appState}
             supabaseUserEmail={supabaseUserEmail}
             isSupabaseConfigured={isSupabaseConfigured}
-            isSupabaseBusy={isSupabaseBusy}
-            supabaseStatus={supabaseStatus}
             isExportingWorkbook={isExportingWorkbook}
             isExportingPdf={isExportingPdf}
             isSheetPreviewVisible={isSheetPreviewVisible}
@@ -1253,7 +1206,6 @@ function App() {
             feedbackState={feedbackState}
             feedbackQuestions={FEEDBACK_QUESTIONS}
             pdfExportRef={pdfExportRef}
-            onPullFromSupabase={() => void handlePullFromSupabase()}
             onSupabaseSignOut={() => void handleSupabaseSignOut()}
             onExportWorkbook={() => void handleExportWorkbook()}
             onExportPdf={() => void handleExportPdf()}

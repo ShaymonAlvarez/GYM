@@ -36,8 +36,6 @@ type SettingsScreenProps = {
   appState: AppState;
   supabaseUserEmail: string | null;
   isSupabaseConfigured: boolean;
-  isSupabaseBusy: boolean;
-  supabaseStatus: string;
   isExportingWorkbook: boolean;
   isExportingPdf: boolean;
   isSheetPreviewVisible: boolean;
@@ -46,7 +44,6 @@ type SettingsScreenProps = {
   feedbackState: FeedbackState;
   feedbackQuestions: FeedbackQuestion[];
   pdfExportRef: React.RefObject<HTMLDivElement>;
-  onPullFromSupabase: () => void;
   onSupabaseSignOut: () => void;
   onExportWorkbook: () => void;
   onExportPdf: () => void;
@@ -63,8 +60,6 @@ function SettingsScreen({
   appState,
   supabaseUserEmail,
   isSupabaseConfigured,
-  isSupabaseBusy,
-  supabaseStatus,
   isExportingWorkbook,
   isExportingPdf,
   isSheetPreviewVisible,
@@ -73,7 +68,6 @@ function SettingsScreen({
   feedbackState,
   feedbackQuestions,
   pdfExportRef,
-  onPullFromSupabase,
   onSupabaseSignOut,
   onExportWorkbook,
   onExportPdf,
@@ -196,26 +190,6 @@ function SettingsScreen({
               {isDark ? <SunIcon /> : <MoonIcon />}
             </button>
           </div>
-        </div>
-
-        {/* Sincronização */}
-        <div className="settings-card">
-          <span className="settings-card__title">Sincronização</span>
-
-          <p className="settings-note">
-            Fotos são enviadas automaticamente ao adicionar (WebP otimizado). Use o botão abaixo para baixar dados de outro dispositivo.
-          </p>
-
-          <button
-            className="btn btn--secondary btn--full btn--sm"
-            type="button"
-            disabled={!supabaseUserEmail || isSupabaseBusy}
-            onClick={onPullFromSupabase}
-          >
-            {isSupabaseBusy ? 'Carregando...' : 'Baixar dados'}
-          </button>
-
-          {supabaseStatus ? <p className="sync-message">{supabaseStatus}</p> : null}
         </div>
 
         {/* Exportação */}
