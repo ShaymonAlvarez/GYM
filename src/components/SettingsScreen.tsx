@@ -151,12 +151,12 @@ function SettingsScreen({
               type="button"
               onClick={onClearLocalData}
             >
-              Apagar dados e deslogar
+              Excluir conta e todos os dados
             </button>
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '6px' }}>
             <b>Mantém login:</b> apaga treinos e histórico, mas continua logado.<br />
-            <b>Apagar e deslogar:</b> zera os dados e encerra a sessão. A conta continua existindo e você pode entrar novamente.
+            <b>Excluir conta:</b> remove permanentemente todos os seus dados e sua conta. Não é possível recuperar.
           </p>
         </div>
 

@@ -482,12 +482,17 @@ function App() {
   };
 
   const handleClearLocalData = async () => {
-    if (!window.confirm('Apaga TODOS os dados locais e do Supabase e encerra a sessão. Esta ação não pode ser desfeita. Continuar?')) return;
+    if (!window.confirm('Apaga TODOS os seus dados e exclui sua conta permanentemente. Esta ação não pode ser desfeita. Continuar?')) return;
 
     if (supabaseClient) {
-      const { data } = await supabaseClient.auth.getUser();
-      if (data.user) {
-        await deleteRemoteAppState(supabaseClient, data.user);
+      // delete_own_account() is a SECURITY DEFINER PostgreSQL function that
+      // deletes the user's app state and auth account using server-side privileges.
+      // The user can only delete their own account (enforced by auth.uid()).
+      const { error } = await supabaseClient.rpc('delete_own_account');
+      if (error) {
+        // Fallback: delete only app state and sign out if function not deployed yet
+        const { data } = await supabaseClient.auth.getUser();
+        if (data.user) await deleteRemoteAppState(supabaseClient, data.user);
       }
       await supabaseClient.auth.signOut();
     }
