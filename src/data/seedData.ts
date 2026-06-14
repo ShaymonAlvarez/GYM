@@ -89,6 +89,20 @@ const createInitialWeeks = (): WeekLog[] =>
     }))
   }));
 
+export const createEmptyAppState = (): AppState => ({
+  templates: [],
+  weeks: [],
+  activeWeekIndex: 0,
+  activeWorkoutId: '',
+  feedback: createEmptyFeedbackState(),
+  localMedia: [],
+  supabase: {
+    enabled: false,
+    projectUrl: '',
+    anonKey: ''
+  }
+});
+
 export const createSeedAppState = (): AppState => {
   const weeks = createInitialWeeks();
 

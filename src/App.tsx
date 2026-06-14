@@ -5,12 +5,14 @@ import type { ScreenId } from './components/BottomNav';
 import DashboardScreen from './components/DashboardScreen';
 import WorkoutScreen from './components/WorkoutScreen';
 import FeedbackScreen from './components/FeedbackScreen';
+import HistoryScreen from './components/HistoryScreen';
 import MediaScreen from './components/MediaScreen';
 import SettingsScreen from './components/SettingsScreen';
 
-import { FEEDBACK_QUESTIONS, normalizeFeedbackState } from './data/feedback';
+import { FEEDBACK_QUESTIONS, FEEDBACK_WEEK_COUNT, normalizeFeedbackState, createEmptyFeedbackState } from './data/feedback';
+import { lookupExerciseVideo } from './data/exerciseCatalog';
 import sheetLayout from './data/sheetLayout.json';
-import { loadAppState, saveAppState } from './lib/db';
+import { loadAppState, saveAppState, clearAppState } from './lib/db';
 import {
   calculateSummaryFromSets,
   createEmptySetEntries,
@@ -22,15 +24,16 @@ import {
   sanitizeNumericInput
 } from './lib/state';
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
+import { parseWorkoutPdf } from './lib/pdfParser';
 import {
   supabaseSingleton,
   hasSupabaseConfig,
   hydrateRemotePhotoUrls,
   loadRemoteAppState,
-  saveRemoteAppState,
+  deleteRemoteAppState,
   uploadPhotoAsset
 } from './lib/supabase';
-import type { AppState, LocalMediaAsset, SetType, SheetLayout } from './types';
+import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry } from './types';
 
 const workbookLayout = sheetLayout as SheetLayout;
 type SaveStatus = 'saved' | 'saving' | 'dirty';
@@ -67,17 +70,6 @@ const formatDuration = (totalSeconds: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const getSetTypeLabel = (type: SetType) => {
-  if (type === 'yellow') {
-    return 'Aquecimento';
-  }
-
-  if (type === 'orange') {
-    return 'Serie seria';
-  }
-
-  return 'Serie dificil';
-};
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -88,12 +80,6 @@ const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-const dataUrlToFile = async (dataUrl: string, name: string, fallbackType = 'image/jpeg') => {
-  const response = await fetch(dataUrl);
-  const blob = await response.blob();
-
-  return new File([blob], name, { type: blob.type || fallbackType });
-};
 
 const formatBytes = (bytes?: number) => {
   if (!bytes) {
@@ -120,9 +106,22 @@ function App() {
   const [now, setNow] = useState(Date.now());
   const [workoutStartedAt, setWorkoutStartedAt] = useState<number | null>(null);
   const [workoutEndedAt, setWorkoutEndedAt] = useState<number | null>(null);
-  const [activeExerciseTimer, setActiveExerciseTimer] = useState<{ exerciseId: string; startedAt: number } | null>(null);
+  const [workoutTimerPaused, setWorkoutTimerPaused] = useState(false);
+  const [workoutTimerAccumulated, setWorkoutTimerAccumulated] = useState(0);
+  const [activeSetTimer, setActiveSetTimer] = useState<{
+    exerciseId: string;
+    slotIndex: number;
+    startedAt: number;
+    accumulated: number;
+    paused: boolean;
+  } | null>(null);
   const [restDurationSeconds, setRestDurationSeconds] = useState(90);
-  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [restTimer, setRestTimer] = useState<{
+    exerciseId: string;
+    slotIndex: number;
+    startedAt: number;
+    duration: number;
+  } | null>(null);
   const [supabaseUserEmail, setSupabaseUserEmail] = useState<string | null>(null);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -143,6 +142,16 @@ function App() {
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  // When the rest countdown runs out on its own, record the FULL prescribed duration.
+  useEffect(() => {
+    if (!restTimer) return;
+    if (now >= restTimer.startedAt + restTimer.duration * 1000) {
+      updateState((s) => patchSet(s, restTimer.exerciseId, restTimer.slotIndex, { restSeconds: restTimer.duration }));
+      setRestTimer(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, restTimer]);
 
   useEffect(() => {
     let isMounted = true;
@@ -179,8 +188,8 @@ function App() {
         // Ensure appState exists
         const savedState = await loadAppState();
         if (!isMounted) return;
-        const { createSeedAppState } = await import('./data/seedData');
-        const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createSeedAppState();
+        const { createEmptyAppState } = await import('./data/seedData');
+        const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
         setAppState(nextState);
         if (!savedState || !isAppState(savedState)) {
           void saveAppState(nextState);
@@ -263,6 +272,63 @@ function App() {
     setAppState((currentState) => (currentState ? normalizeAppState(updater(currentState)) : currentState));
   };
 
+  const handleImportPdf = async (file: File) => {
+    const confirmMessage = "Tem certeza que deseja importar este PDF? Seu progresso atual será salvo no Histórico e a tela de treinos será totalmente resetada e substituída pelo novo plano.";
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      const parsedTemplates = await parseWorkoutPdf(file);
+      if (!parsedTemplates.length) {
+        alert("Nenhum treino reconhecido no PDF.");
+        return;
+      }
+
+      // Mapeia cada exercício para a linha absoluta correta da planilha modelo.
+      // A planilha tem grupos fixos separados por linha amarela:
+      // Treino 1 -> linhas 5-9, Treino 2 -> 11-15, Treino 3 -> 17-21, Treino 4 -> 23-27.
+      const EXERCISE_GROUP_START_ROWS = [5, 11, 17, 23];
+      const GROUP_CAPACITY = 5;
+      const templates = parsedTemplates
+        .slice(0, EXERCISE_GROUP_START_ROWS.length)
+        .map((template, workoutIndex) => ({
+          ...template,
+          exercises: template.exercises.slice(0, GROUP_CAPACITY).map((exercise, exerciseIndex) => ({
+            ...exercise,
+            ...lookupExerciseVideo(exercise.name),
+            rowNumber: EXERCISE_GROUP_START_ROWS[workoutIndex] + exerciseIndex
+          }))
+        }));
+
+      updateState((currentState) => {
+        const archivedPeriod: ArchivedPeriod = {
+          id: `archive-${Date.now()}`,
+          archivedAt: new Date().toISOString(),
+          label: `Período arquivado em ${new Date().toLocaleDateString()}`,
+          state: { ...currentState, archives: undefined }
+        };
+        
+        return {
+          ...currentState,
+          templates,
+          weeks: Array.from({ length: FEEDBACK_WEEK_COUNT }, (_, i) => ({
+            index: i,
+            label: `Semana ${i + 1}`,
+            workoutLogs: [],
+            isCompleted: false
+          })),
+          activeWeekIndex: 0,
+          activeWorkoutId: templates[0]?.id ?? '',
+          feedback: createEmptyFeedbackState(),
+          archives: [...(currentState.archives || []), archivedPeriod]
+        };
+      });
+      setFlashMessage("Treino importado com sucesso!");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao ler o PDF.");
+    }
+  };
+
   // ═══════════════════════════════════════════
   // LOGIN HANDLERS
   // ═══════════════════════════════════════════
@@ -294,8 +360,8 @@ function App() {
 
       // Load or create app state after login
       const savedState = await loadAppState();
-      const { createSeedAppState } = await import('./data/seedData');
-      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createSeedAppState();
+      const { createEmptyAppState } = await import('./data/seedData');
+      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
       setAppState(nextState);
       if (!savedState || !isAppState(savedState)) {
         void saveAppState(nextState);
@@ -348,6 +414,35 @@ function App() {
     setLoginStatus('');
   };
 
+  const handleClearLocalData = async () => {
+    if (!window.confirm('Apaga TODOS os dados locais e do Supabase e encerra a sessão. Esta ação não pode ser desfeita. Continuar?')) return;
+
+    if (supabaseClient) {
+      const { data } = await supabaseClient.auth.getUser();
+      if (data.user) {
+        await deleteRemoteAppState(supabaseClient, data.user);
+      }
+      await supabaseClient.auth.signOut();
+    }
+
+    await clearAppState();
+    window.location.reload();
+  };
+
+  const handleClearAllData = async () => {
+    if (!window.confirm('Apaga TODOS os dados — local e no Supabase. O login é mantido. Esta ação não pode ser desfeita. Continuar?')) return;
+
+    if (supabaseClient) {
+      const { data } = await supabaseClient.auth.getUser();
+      if (data.user) {
+        await deleteRemoteAppState(supabaseClient, data.user);
+      }
+    }
+
+    await clearAppState();
+    window.location.reload();
+  };
+
   // ═══════════════════════════════════════════
   // WORKOUT HANDLERS (preserved from original)
   // ═══════════════════════════════════════════
@@ -396,6 +491,17 @@ function App() {
         };
       })
     }));
+  };
+
+  const clearFeedbackWeek = () => {
+    updateState((currentState) => {
+      const nextFeedback = normalizeFeedbackState(currentState.feedback, currentState.weeks.length);
+      nextFeedback.weeklyAnswers[currentState.activeWeekIndex] = Array.from(
+        { length: FEEDBACK_QUESTIONS.length },
+        () => ''
+      );
+      return { ...currentState, feedback: nextFeedback };
+    });
   };
 
   const updateFeedbackAnswer = (questionIndex: number, value: string) => {
@@ -498,6 +604,228 @@ function App() {
     setFlashMessage('Semana atual zerada.');
   };
 
+  const handleClearExercise = (exerciseId: string) => {
+    if (!appState) return;
+    updateState((currentState) => ({
+      ...currentState,
+      weeks: currentState.weeks.map((week) => {
+        if (week.index !== currentState.activeWeekIndex) return week;
+        return {
+          ...week,
+          workoutLogs: week.workoutLogs.map((workoutLog) => {
+            if (workoutLog.workoutId !== currentState.activeWorkoutId) return workoutLog;
+            const workoutTemplate = currentState.templates.find(
+              (t) => t.id === currentState.activeWorkoutId
+            );
+            return {
+              ...workoutLog,
+              exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
+                if (exerciseLog.exerciseId !== exerciseId) return exerciseLog;
+                const exerciseTemplate = workoutTemplate?.exercises.find(
+                  (ex) => ex.id === exerciseId
+                );
+                return {
+                  ...exerciseLog,
+                  sets: exerciseTemplate ? createEmptySetEntries(exerciseTemplate) : exerciseLog.sets,
+                  summary: { totalLoad: null, averageReps: null, setCount: 0 }
+                };
+              })
+            };
+          })
+        };
+      })
+    }));
+  };
+
+  // Patch a single set in the active week/workout, recalculating the summary.
+  const patchSet = (
+    state: AppState,
+    exerciseId: string,
+    slotIndex: number,
+    patch: Partial<SetEntry>
+  ): AppState => ({
+    ...state,
+    weeks: state.weeks.map((week) => {
+      if (week.index !== state.activeWeekIndex) return week;
+      return {
+        ...week,
+        workoutLogs: week.workoutLogs.map((wl) => {
+          if (wl.workoutId !== state.activeWorkoutId) return wl;
+          return {
+            ...wl,
+            exerciseLogs: wl.exerciseLogs.map((el) => {
+              if (el.exerciseId !== exerciseId) return el;
+              const sets = el.sets.map((set) =>
+                set.slotIndex === slotIndex ? { ...set, ...patch } : set
+              );
+              return { ...el, sets, summary: calculateSummaryFromSets({ sets }) };
+            })
+          };
+        })
+      };
+    })
+  });
+
+  const handleWorkoutPauseToggle = () => {
+    if (!workoutStartedAt || workoutEndedAt) return;
+    if (workoutTimerPaused) {
+      setWorkoutStartedAt(Date.now());
+      setWorkoutTimerPaused(false);
+    } else {
+      const elapsed = Math.floor((Date.now() - workoutStartedAt) / 1000);
+      setWorkoutTimerAccumulated((prev) => prev + elapsed);
+      setWorkoutTimerPaused(true);
+    }
+  };
+
+  const handleWorkoutEnd = () => {
+    const endTime = Date.now();
+    const runningElapsed = !workoutTimerPaused && workoutStartedAt
+      ? Math.floor((endTime - workoutStartedAt) / 1000)
+      : 0;
+    const totalSeconds = workoutTimerAccumulated + runningElapsed;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    setWorkoutEndedAt(endTime);
+    updateState((s) => ({
+      ...s,
+      weeks: s.weeks.map((week) => {
+        if (week.index !== s.activeWeekIndex) return week;
+        return {
+          ...week,
+          workoutLogs: week.workoutLogs.map((wl) => {
+            if (wl.workoutId !== s.activeWorkoutId) return wl;
+            return { ...wl, durationSeconds: totalSeconds };
+          })
+        };
+      }),
+      workoutSessions: [
+        ...(s.workoutSessions ?? []).filter((sess) => sess.date !== todayIso),
+        { date: todayIso, durationSeconds: totalSeconds }
+      ]
+    }));
+  };
+
+  const handleEditSession = (date: string, durationSeconds: number) => {
+    updateState((s) => ({
+      ...s,
+      workoutSessions: [
+        ...(s.workoutSessions ?? []).filter((sess) => sess.date !== date),
+        { date, durationSeconds }
+      ]
+    }));
+  };
+
+  const handleResetTimer = () => {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    setWorkoutStartedAt(null);
+    setWorkoutEndedAt(null);
+    setWorkoutTimerPaused(false);
+    setWorkoutTimerAccumulated(0);
+    updateState((s) => ({
+      ...s,
+      workoutSessions: (s.workoutSessions ?? []).filter((sess) => sess.date !== todayIso)
+    }));
+  };
+
+  // Records the actual elapsed rest for the set the rest timer belongs to.
+  const recordRestElapsed = (timer: { exerciseId: string; slotIndex: number; startedAt: number; duration: number }) => {
+    const elapsed = Math.min(timer.duration, Math.floor((Date.now() - timer.startedAt) / 1000));
+    updateState((s) => patchSet(s, timer.exerciseId, timer.slotIndex, { restSeconds: elapsed }));
+  };
+
+  // Start / pause / resume the ACTIVE (count-up) timer. Never touches the rest timer.
+  const handleSetTimerToggle = (exerciseId: string, slotIndex: number) => {
+    if (activeSetTimer?.exerciseId === exerciseId && activeSetTimer?.slotIndex === slotIndex) {
+      if (activeSetTimer.paused) {
+        // Resume: continue counting from where it froze
+        setActiveSetTimer({ ...activeSetTimer, paused: false, startedAt: Date.now() });
+      } else {
+        // Pause: freeze the chronometer only — no rest, nothing recorded
+        const elapsed = Math.floor((Date.now() - activeSetTimer.startedAt) / 1000);
+        setActiveSetTimer({ ...activeSetTimer, paused: true, accumulated: activeSetTimer.accumulated + elapsed });
+      }
+    } else {
+      // Starting a new set's timer: if a rest was running, bank its elapsed time first
+      if (restTimer) {
+        recordRestElapsed(restTimer);
+        setRestTimer(null);
+      }
+      setActiveSetTimer({ exerciseId, slotIndex, startedAt: Date.now(), accumulated: 0, paused: false });
+    }
+  };
+
+  // Finalize the ACTIVE timer: record the total active time, then auto-start the rest countdown.
+  const handleFinalizeSet = (exerciseId: string, slotIndex: number) => {
+    if (!activeSetTimer) return;
+    const totalSeconds = activeSetTimer.paused
+      ? activeSetTimer.accumulated
+      : activeSetTimer.accumulated + Math.floor((Date.now() - activeSetTimer.startedAt) / 1000);
+    updateState((s) => patchSet(s, exerciseId, slotIndex, { activeSeconds: totalSeconds }));
+    setActiveSetTimer(null);
+    setRestTimer({ exerciseId, slotIndex, startedAt: Date.now(), duration: restDurationSeconds });
+  };
+
+  // Finalize the REST countdown early: record only the rest that actually elapsed.
+  const handleFinishRest = () => {
+    if (!restTimer) return;
+    recordRestElapsed(restTimer);
+    setRestTimer(null);
+  };
+
+  const handleClearSet = (exerciseId: string, slotIndex: number) => {
+    updateState((s) => ({
+      ...s,
+      weeks: s.weeks.map((week) => {
+        if (week.index !== s.activeWeekIndex) return week;
+        return {
+          ...week,
+          workoutLogs: week.workoutLogs.map((wl) => {
+            if (wl.workoutId !== s.activeWorkoutId) return wl;
+            return {
+              ...wl,
+              exerciseLogs: wl.exerciseLogs.map((el) => {
+                if (el.exerciseId !== exerciseId) return el;
+                const nextSets = el.sets.map((set) =>
+                  set.slotIndex === slotIndex
+                    ? { ...set, load: '', reps: '', activeSeconds: undefined }
+                    : set
+                );
+                return { ...el, sets: nextSets, summary: calculateSummaryFromSets({ sets: nextSets }) };
+              })
+            };
+          })
+        };
+      })
+    }));
+  };
+
+  const handleClearExerciseForWeek = (exerciseId: string, weekIndex: number) => {
+    updateState((s) => ({
+      ...s,
+      weeks: s.weeks.map((week) => {
+        if (week.index !== weekIndex) return week;
+        const template = s.templates.find((t) => t.id === s.activeWorkoutId);
+        const exerciseTemplate = template?.exercises.find((ex) => ex.id === exerciseId);
+        return {
+          ...week,
+          workoutLogs: week.workoutLogs.map((wl) => {
+            if (wl.workoutId !== s.activeWorkoutId) return wl;
+            return {
+              ...wl,
+              exerciseLogs: wl.exerciseLogs.map((el) => {
+                if (el.exerciseId !== exerciseId) return el;
+                const emptySets = exerciseTemplate
+                  ? createEmptySetEntries(exerciseTemplate)
+                  : el.sets.map((set) => ({ ...set, load: '', reps: '', activeSeconds: undefined }));
+                return { ...el, sets: emptySets, summary: { totalLoad: null, averageReps: null, setCount: 0 } };
+              })
+            };
+          })
+        };
+      })
+    }));
+  };
+
   const handleSubmitWorkout = async () => {
     if (!appState) return;
 
@@ -568,7 +896,8 @@ function App() {
             workoutId: activeWorkout.id
           };
 
-          if (asset.type !== 'photo' || !supabaseClient || !appState.supabase?.enabled) {
+          // Always auto-upload photos when logged in — no manual push needed.
+          if (asset.type !== 'photo' || !supabaseClient) {
             return asset;
           }
 
@@ -599,70 +928,6 @@ function App() {
       ...currentState,
       localMedia: (currentState.localMedia ?? []).filter((asset) => asset.id !== assetId)
     }));
-  };
-
-  const uploadPendingPhotos = async (userId: string) => {
-    if (!supabaseClient || !appState) {
-      return appState?.localMedia ?? [];
-    }
-
-    const {
-      data: { user }
-    } = await supabaseClient.auth.getUser();
-
-    if (!user || user.id !== userId) {
-      return appState.localMedia ?? [];
-    }
-
-    return Promise.all(
-      (appState.localMedia ?? []).map(async (asset) => {
-        if (asset.type !== 'photo' || asset.storagePath || !asset.dataUrl) {
-          return asset;
-        }
-
-        const file = await dataUrlToFile(asset.dataUrl, asset.name, asset.mimeType);
-
-        return uploadPhotoAsset(supabaseClient, user, asset, file);
-      })
-    );
-  };
-
-  const handlePushToSupabase = async () => {
-    if (!supabaseClient || !appState) {
-      setSupabaseStatus('Configure o Supabase antes de sincronizar.');
-      return;
-    }
-
-    setIsSupabaseBusy(true);
-    setSupabaseStatus('Enviando dados...');
-
-    try {
-      const {
-        data: { user }
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) {
-        setSupabaseStatus('Entre na sua conta antes de sincronizar.');
-        return;
-      }
-
-      const nextMedia = await uploadPendingPhotos(user.id);
-      const nextState = normalizeAppState({
-        ...appState,
-        localMedia: nextMedia
-      });
-
-      await saveRemoteAppState(supabaseClient, user, nextState);
-      setAppState(nextState);
-      await saveAppState(nextState);
-      setLastSavedAt(new Date());
-      setSaveStatus('saved');
-      setSupabaseStatus('Dados enviados. Fotos otimizadas foram para o Storage; videos ficaram locais.');
-    } catch (error) {
-      setSupabaseStatus(error instanceof Error ? error.message : 'Falha ao enviar para o Supabase.');
-    } finally {
-      setIsSupabaseBusy(false);
-    }
   };
 
   const handlePullFromSupabase = async () => {
@@ -750,12 +1015,17 @@ function App() {
   // DERIVED STATE
   // ═══════════════════════════════════════════
 
-  const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
+  const EMPTY_WEEK: typeof appState.weeks[number] = { index: 0, label: 'Semana 1', workoutLogs: [] };
+  const EMPTY_WORKOUT: typeof appState.templates[number] = { id: '', name: '', subtitle: '', accent: '', exercises: [] };
+  const EMPTY_WORKOUT_LOG: import('./types').WorkoutLog = { workoutId: '', exerciseLogs: [] };
+
+  const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0] ?? EMPTY_WEEK;
   const activeWorkout =
-    appState.templates.find((workout) => workout.id === appState.activeWorkoutId) ?? appState.templates[0];
+    appState.templates.find((workout) => workout.id === appState.activeWorkoutId) ?? appState.templates[0] ?? EMPTY_WORKOUT;
   const activeWorkoutLog =
     activeWeek.workoutLogs.find((workoutLog) => workoutLog.workoutId === activeWorkout.id) ??
-    activeWeek.workoutLogs[0];
+    activeWeek.workoutLogs[0] ??
+    EMPTY_WORKOUT_LOG;
   const activeWeekSummary = getWeekSummary(activeWeek);
   const activeWorkoutSummary = getWorkoutSummary(activeWorkoutLog);
   const activeCompletion = getCompletion(activeWorkoutLog);
@@ -771,10 +1041,14 @@ function App() {
   const activeMedia = (appState.localMedia ?? []).filter(
     (asset) => asset.weekIndex === appState.activeWeekIndex && asset.workoutId === activeWorkout.id
   );
-  const workoutElapsedSeconds = workoutStartedAt
-    ? Math.floor(((workoutEndedAt ?? now) - workoutStartedAt) / 1000)
+  const workoutElapsedSeconds = (() => {
+    if (!workoutStartedAt) return 0;
+    if (workoutTimerPaused) return workoutTimerAccumulated;
+    return workoutTimerAccumulated + Math.floor(((workoutEndedAt ?? now) - workoutStartedAt) / 1000);
+  })();
+  const restRemainingSeconds = restTimer
+    ? Math.max(0, Math.ceil((restTimer.startedAt + restTimer.duration * 1000 - now) / 1000))
     : 0;
-  const restRemainingSeconds = restEndsAt ? Math.max(0, Math.ceil((restEndsAt - now) / 1000)) : 0;
 
   const saveStatusLabel =
     saveStatus === 'dirty'
@@ -784,18 +1058,54 @@ function App() {
         : `Salvo ${formatSavedAt(lastSavedAt)}`;
   const isSupabaseConfigured = hasSupabaseConfig(appState.supabase);
 
+  // Extra dashboard metrics
+  const previousWeek = appState.activeWeekIndex > 0
+    ? appState.weeks[appState.activeWeekIndex - 1]
+    : null;
+  const previousWeekSummary = previousWeek ? getWeekSummary(previousWeek) : null;
+
+  const workoutsThisWeek = activeWeek.workoutLogs.filter((wl) =>
+    wl.exerciseLogs.some((el) => el.sets.some((s) => s.load || s.reps))
+  ).length;
+
   // ═══════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════
 
+  const hasProgram = appState.templates.length > 0;
+
+  const emptyProgramScreen = (
+    <div className="screen">
+      <div className="empty-program-state">
+        <svg className="empty-program-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 17H5a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v0a2 2 0 0 0-2-2h-4"/>
+          <path d="M12 3v14"/>
+          <path d="M8 7l4-4 4 4"/>
+        </svg>
+        <h2 className="empty-program-state__title">Nenhum treino carregado</h2>
+        <p className="empty-program-state__subtitle">Importe o PDF do seu plano de treino para começar.</p>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => setActiveScreen('settings')}
+        >
+          Importar PDF
+        </button>
+      </div>
+    </div>
+  );
+
   const renderScreen = () => {
     switch (activeScreen) {
       case 'dashboard':
+        if (!hasProgram) return emptyProgramScreen;
         return (
           <DashboardScreen
             appState={appState}
             activeWeekSummary={activeWeekSummary}
             activeWorkoutSummary={activeWorkoutSummary}
+            previousWeekSummary={previousWeekSummary}
+            workoutsThisWeek={workoutsThisWeek}
             activeProgress={activeProgress}
             activeCompletion={activeCompletion}
             saveStatus={saveStatus}
@@ -806,6 +1116,7 @@ function App() {
         );
 
       case 'workout':
+        if (!hasProgram) return emptyProgramScreen;
         return (
           <WorkoutScreen
             appState={appState}
@@ -827,39 +1138,45 @@ function App() {
             workoutStartedAt={workoutStartedAt}
             workoutEndedAt={workoutEndedAt}
             workoutElapsedSeconds={workoutElapsedSeconds}
-            activeExerciseTimer={activeExerciseTimer}
+            activeSetTimer={activeSetTimer}
+            restTimer={restTimer}
             now={now}
             restDurationSeconds={restDurationSeconds}
             restRemainingSeconds={restRemainingSeconds}
             saveStatus={saveStatus}
             formatMetric={formatMetric}
             formatDuration={formatDuration}
-            getSetTypeLabel={getSetTypeLabel}
             onSetValueChange={updateSetValue}
+            workoutTimerPaused={workoutTimerPaused}
+            workoutSessions={appState.workoutSessions ?? []}
             onWorkoutStart={() => {
               setWorkoutStartedAt(Date.now());
               setWorkoutEndedAt(null);
+              setWorkoutTimerPaused(false);
+              setWorkoutTimerAccumulated(0);
             }}
-            onWorkoutEnd={() => setWorkoutEndedAt(Date.now())}
-            onExerciseTimerToggle={(exerciseId) => {
-              setActiveExerciseTimer((currentValue) =>
-                currentValue?.exerciseId === exerciseId ? null : { exerciseId, startedAt: Date.now() }
-              );
-            }}
+            onWorkoutEnd={handleWorkoutEnd}
+            onWorkoutPauseToggle={handleWorkoutPauseToggle}
+            onEditSession={handleEditSession}
+            onResetTimer={handleResetTimer}
+            onSetTimerToggle={handleSetTimerToggle}
+            onFinalizeSet={handleFinalizeSet}
+            onClearSet={handleClearSet}
             onRestDurationChange={setRestDurationSeconds}
-            onRestStart={() => setRestEndsAt(Date.now() + restDurationSeconds * 1000)}
-            onRestReset={() => setRestEndsAt(null)}
+            onFinishRest={handleFinishRest}
             onSave={() => void handleSubmitWorkout()}
             onCopyPrevious={handleCopyPreviousWeek}
             onClearWeek={handleClearWeek}
+            onClearExercise={handleClearExercise}
+            onClearExerciseForWeek={handleClearExerciseForWeek}
           />
         );
 
       case 'feedback':
+        if (!hasProgram) return emptyProgramScreen;
         return (
           <FeedbackScreen
-            activeWeekLabel={activeWeek.label}
-            activeWeekIndex={appState.activeWeekIndex}
+            appState={appState}
             questions={FEEDBACK_QUESTIONS}
             activeFeedbackAnswers={activeFeedbackAnswers}
             weeklyComment={feedbackState.weeklyComments[appState.activeWeekIndex] ?? ''}
@@ -867,15 +1184,25 @@ function App() {
             onAnswerChange={updateFeedbackAnswer}
             onCommentChange={updateFeedbackComment}
             onPhotoNoteChange={updatePhotoNote}
+            onWeekChange={(weekIndex) => updateState((s) => ({ ...s, activeWeekIndex: weekIndex }))}
+            onClearFeedback={clearFeedbackWeek}
           />
         );
 
+      case 'history':
+        return <HistoryScreen appState={appState} />;
+
       case 'media':
+        if (!hasProgram) return emptyProgramScreen;
         return (
           <MediaScreen
+            appState={appState}
+            activeWorkout={activeWorkout}
             activeMedia={activeMedia}
             onAddMedia={(files) => void handleAddMedia(files)}
             onRemoveMedia={handleRemoveMedia}
+            onWeekChange={(weekIndex) => updateState((s) => ({ ...s, activeWeekIndex: weekIndex }))}
+            onWorkoutChange={(workoutId) => updateState((s) => ({ ...s, activeWorkoutId: workoutId }))}
             formatBytes={formatBytes}
           />
         );
@@ -896,23 +1223,16 @@ function App() {
             feedbackState={feedbackState}
             feedbackQuestions={FEEDBACK_QUESTIONS}
             pdfExportRef={pdfExportRef}
-            onToggleSync={(enabled) => {
-              updateState((currentState) => ({
-                ...currentState,
-                supabase: {
-                  enabled,
-                  projectUrl: currentState.supabase?.projectUrl ?? '',
-                  anonKey: currentState.supabase?.anonKey ?? ''
-                }
-              }));
-            }}
-            onPushToSupabase={() => void handlePushToSupabase()}
             onPullFromSupabase={() => void handlePullFromSupabase()}
             onSupabaseSignOut={() => void handleSupabaseSignOut()}
             onExportWorkbook={() => void handleExportWorkbook()}
             onExportPdf={() => void handleExportPdf()}
             onToggleSheetPreview={() => setIsSheetPreviewVisible((v) => !v)}
             onChangeTheme={(theme) => updateState((s) => ({ ...s, theme }))}
+            onToggleHideWarmupSets={(hide) => updateState((s) => ({ ...s, preferences: { ...s.preferences, hideWarmupSets: hide } }))}
+            onImportPdf={handleImportPdf}
+            onClearLocalData={() => void handleClearLocalData()}
+            onClearAllData={() => void handleClearAllData()}
             onLogout={() => void handleLogout()}
           />
         );

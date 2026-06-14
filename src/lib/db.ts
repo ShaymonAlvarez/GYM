@@ -35,3 +35,7 @@ export const saveAppState = async (value: AppState): Promise<void> => {
     updatedAt: new Date().toISOString()
   });
 };
+
+export const clearAppState = async (): Promise<void> => {
+  await db.state.clear();
+};

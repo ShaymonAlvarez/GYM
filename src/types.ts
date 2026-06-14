@@ -5,6 +5,8 @@ export type SetEntry = {
   type: SetType;
   load: string;
   reps: string;
+  activeSeconds?: number;
+  restSeconds?: number;
 };
 
 export type ExerciseSummary = {
@@ -26,6 +28,17 @@ export type ExerciseTemplate = {
   thumbnailUrl?: string;
   catalogLabel?: string;
   catalogPage?: number;
+  yellowSetCount?: number;
+  expectedReps?: string;
+  restInterval?: string;
+  rir?: string;
+  setDetails?: {
+    yellow?: { reps: string; rest: string; rir: string };
+    orange?: { reps: string; rest: string; rir: string };
+    red?: { reps: string; rest: string; rir: string };
+  };
+  methods?: string;
+  pdfNotes?: string;
 };
 
 export type WorkoutTemplate = {
@@ -45,6 +58,7 @@ export type ExerciseLog = {
 export type WorkoutLog = {
   workoutId: string;
   exerciseLogs: ExerciseLog[];
+  durationSeconds?: number;
 };
 
 export type WeekLog = {
@@ -82,6 +96,18 @@ export type SupabaseSettings = {
   anonKey: string;
 };
 
+export type ArchivedPeriod = {
+  id: string;
+  archivedAt: string;
+  label: string;
+  state: Partial<AppState>;
+};
+
+export type WorkoutSession = {
+  date: string; // YYYY-MM-DD
+  durationSeconds: number;
+};
+
 export type AppState = {
   templates: WorkoutTemplate[];
   weeks: WeekLog[];
@@ -91,6 +117,11 @@ export type AppState = {
   localMedia?: LocalMediaAsset[];
   supabase?: SupabaseSettings;
   theme?: 'light' | 'dark' | 'system';
+  preferences?: {
+    hideWarmupSets?: boolean;
+  };
+  archives?: ArchivedPeriod[];
+  workoutSessions?: WorkoutSession[];
 };
 
 export type SummaryMetrics = ExerciseSummary;

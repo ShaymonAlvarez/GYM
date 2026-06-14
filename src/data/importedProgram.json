@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-09T12:35:42.499Z",
+  "generatedAt": "2026-06-13T19:36:44.001Z",
   "sourceWorkbook": "Planilha de cargas Rayza Alvarez_clean.xlsx",
   "sourceCatalog": "Catálogo de exercícios.pdf",
   "latestWeekIndex": 6,
@@ -72,8 +72,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 1717.5,
-              "averageReps": 11.5,
+              "totalLoad": 0.2338362068965517,
+              "averageReps": 0.07778819119025306,
               "setCount": 3
             }
           ],
@@ -138,8 +138,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 1306,
-              "averageReps": 11.5,
+              "totalLoad": 0.8138888888888889,
+              "averageReps": 0.15,
               "setCount": 2
             }
           ],
@@ -204,8 +204,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 980,
-              "averageReps": 11,
+              "totalLoad": 0.16666666666666666,
+              "averageReps": 0.1,
               "setCount": 2
             }
           ],
@@ -276,8 +276,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 780,
-              "averageReps": 12,
+              "totalLoad": 0.4444444444444444,
+              "averageReps": 0.09090909090909091,
               "setCount": 3
             }
           ],
@@ -348,8 +348,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 1140,
-              "averageReps": 12,
+              "totalLoad": 0.39705882352941174,
+              "averageReps": 0.1246485473289597,
               "setCount": 3
             }
           ],
@@ -428,8 +428,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 151,
-              "averageReps": 11.666666666666666,
+              "totalLoad": 0.3130434782608696,
+              "averageReps": 0.2962962962962962,
               "setCount": 3
             }
           ],
@@ -500,8 +500,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 300,
-              "averageReps": 12,
+              "totalLoad": 0.30434782608695654,
+              "averageReps": 0.3333333333333333,
               "setCount": 3
             }
           ],
@@ -566,8 +566,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 490,
-              "averageReps": 11,
+              "totalLoad": 0.225,
+              "averageReps": 0.2222222222222222,
               "setCount": 2
             }
           ],
@@ -632,8 +632,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 246,
-              "averageReps": 10.5,
+              "totalLoad": 0.3977272727272727,
+              "averageReps": 0.05,
               "setCount": 2
             }
           ],
@@ -698,8 +698,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 123,
-              "averageReps": 10.5,
+              "totalLoad": 0.7571428571428571,
+              "averageReps": 0.05,
               "setCount": 2
             }
           ],
@@ -778,8 +778,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 2020,
-              "averageReps": 13.333333333333334,
+              "totalLoad": 0.32894736842105265,
+              "averageReps": 0.2500000000000001,
               "setCount": 3
             }
           ],
@@ -844,8 +844,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 1536,
-              "averageReps": 11.5,
+              "totalLoad": 0.8731707317073171,
+              "averageReps": 0.15,
               "setCount": 2
             }
           ],
@@ -910,8 +910,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 980,
-              "averageReps": 11,
+              "totalLoad": 0.6198347107438017,
+              "averageReps": 0.15789473684210525,
               "setCount": 2
             }
           ],
@@ -982,8 +982,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 465,
-              "averageReps": 10.333333333333334,
+              "totalLoad": 0.8023255813953488,
+              "averageReps": 0.033333333333333395,
               "setCount": 3
             }
           ],
@@ -1054,8 +1054,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 780,
-              "averageReps": 12,
+              "totalLoad": 0.3565217391304348,
+              "averageReps": 0.3333333333333333,
               "setCount": 3
             }
           ],
@@ -1134,8 +1134,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 156,
-              "averageReps": 12,
+              "totalLoad": 0.3565217391304348,
+              "averageReps": 0.3333333333333333,
               "setCount": 3
             }
           ],
@@ -1206,8 +1206,8 @@
               "setCount": 3
             },
             {
-              "totalLoad": 200,
-              "averageReps": 10.666666666666666,
+              "totalLoad": 0.47058823529411764,
+              "averageReps": 0.23076923076923078,
               "setCount": 3
             }
           ],
@@ -1272,8 +1272,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 600,
-              "averageReps": 11,
+              "totalLoad": 0.4457831325301205,
+              "averageReps": 0.15789473684210525,
               "setCount": 2
             }
           ],
@@ -1338,8 +1338,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 632,
-              "averageReps": 10,
+              "totalLoad": 0.5228915662650603,
+              "averageReps": 0.05263157894736842,
               "setCount": 2
             }
           ],
@@ -1404,8 +1404,8 @@
               "setCount": 2
             },
             {
-              "totalLoad": 134,
-              "averageReps": 8.5,
+              "totalLoad": -0.06944444444444445,
+              "averageReps": -0.05555555555555555,
               "setCount": 2
             }
           ],

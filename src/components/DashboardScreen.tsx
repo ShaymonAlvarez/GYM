@@ -4,6 +4,8 @@ type DashboardScreenProps = {
   appState: AppState;
   activeWeekSummary: SummaryMetrics;
   activeWorkoutSummary: SummaryMetrics;
+  previousWeekSummary: SummaryMetrics | null;
+  workoutsThisWeek: number;
   activeProgress: number;
   activeCompletion: { completed: number; total: number };
   saveStatus: 'saved' | 'saving' | 'dirty';
@@ -16,6 +18,8 @@ function DashboardScreen({
   appState,
   activeWeekSummary,
   activeWorkoutSummary,
+  previousWeekSummary,
+  workoutsThisWeek,
   activeProgress,
   activeCompletion,
   saveStatus,
@@ -27,13 +31,26 @@ function DashboardScreen({
     appState.templates.find((w) => w.id === appState.activeWorkoutId) ?? appState.templates[0];
   const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0];
 
+  // Volume trend vs previous week (same workout)
+  const currentVol = activeWeekSummary.totalLoad;
+  const prevVol = previousWeekSummary?.totalLoad ?? null;
+  const trendPct =
+    currentVol !== null && prevVol !== null && prevVol > 0
+      ? Math.round(((currentVol - prevVol) / prevVol) * 100)
+      : null;
+  const trendUp = trendPct !== null && trendPct >= 0;
+
   return (
     <div className="screen dashboard-screen" key="dashboard">
       <div className="dashboard-hero">
         <h2>Olá, pronto para treinar?</h2>
-        <p>Você está na <strong>{activeWeek.label}</strong>, ficha <strong>{activeWorkout.name}</strong>.</p>
+        <p>
+          Você está na <strong>{activeWeek.label}</strong>, ficha{' '}
+          <strong>{activeWorkout.name}</strong>.
+        </p>
       </div>
 
+      {/* Fila 1: métricas principais */}
       <div className="metrics-grid">
         <div className="metric-card metric-card--accent">
           <span className="metric-card__label">Semana</span>
@@ -48,7 +65,41 @@ function DashboardScreen({
         <div className="metric-card">
           <span className="metric-card__label">Progresso</span>
           <strong className="metric-card__value">{activeProgress}%</strong>
-          <span className="metric-card__sub">{activeCompletion.completed}/{activeCompletion.total}</span>
+          <span className="metric-card__sub">
+            {activeCompletion.completed}/{activeCompletion.total} séries
+          </span>
+        </div>
+      </div>
+
+      {/* Fila 2: tendência + treinos feitos */}
+      <div className="metrics-grid metrics-grid--two">
+        <div className="metric-card">
+          <span className="metric-card__label">Tendência</span>
+          {trendPct !== null ? (
+            <>
+              <strong
+                className="metric-card__value"
+                style={{ color: trendUp ? 'var(--success)' : 'var(--red)' }}
+              >
+                {trendUp ? '↑' : '↓'} {Math.abs(trendPct)}%
+              </strong>
+              <span className="metric-card__sub">vs semana anterior</span>
+            </>
+          ) : (
+            <>
+              <strong className="metric-card__value" style={{ color: 'var(--text-tertiary)' }}>
+                —
+              </strong>
+              <span className="metric-card__sub">sem dados anteriores</span>
+            </>
+          )}
+        </div>
+        <div className="metric-card">
+          <span className="metric-card__label">Treinos</span>
+          <strong className="metric-card__value">{workoutsThisWeek}</strong>
+          <span className="metric-card__sub">
+            registrados esta semana
+          </span>
         </div>
       </div>
 
@@ -66,7 +117,7 @@ function DashboardScreen({
       </div>
 
       <div className="dashboard-cta">
-        <button className="btn btn--primary btn--full btn--huge" onClick={onNavigateToWorkout}>
+        <button className="btn btn--primary btn--huge" onClick={onNavigateToWorkout}>
           IR PARA O TREINO
         </button>
       </div>

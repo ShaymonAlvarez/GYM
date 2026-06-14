@@ -25,7 +25,6 @@ export const hasSupabaseConfig = (settings?: SupabaseSettings) => {
 
 // Singleton client created from env vars — always available for auth
 const envConfig = getSupabaseConfig();
-console.log('[Supabase Debug]', { url: envConfig.projectUrl ? 'SET' : 'EMPTY', key: envConfig.anonKey ? 'SET' : 'EMPTY', rawUrl: import.meta.env.VITE_SUPABASE_URL, rawKey: typeof import.meta.env.VITE_SUPABASE_ANON_KEY });
 export const supabaseSingleton: GymSupabaseClient | null =
   envConfig.projectUrl && envConfig.anonKey
     ? createClient(envConfig.projectUrl, envConfig.anonKey, {
@@ -99,6 +98,11 @@ export const saveRemoteAppState = async (client: GymSupabaseClient, user: User, 
   }
 };
 
+export const deleteRemoteAppState = async (client: GymSupabaseClient, user: User) => {
+  const { error } = await client.from(SUPABASE_STATE_TABLE).delete().eq('user_id', user.id);
+  if (error) throw error;
+};
+
 export const loadRemoteAppState = async (client: GymSupabaseClient) => {
   const { data, error } = await client.from(SUPABASE_STATE_TABLE).select('state').maybeSingle();
 
@@ -116,7 +120,7 @@ const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string, quality: numb
 
 export const optimizePhotoFile = async (file: File) => {
   const bitmap = await createImageBitmap(file);
-  const maxDimension = 1800;
+  const maxDimension = 1200;
   const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -143,7 +147,7 @@ export const optimizePhotoFile = async (file: File) => {
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  const webpBlob = await canvasToBlob(canvas, 'image/webp', 0.9);
+  const webpBlob = await canvasToBlob(canvas, 'image/webp', 0.72);
 
   if (webpBlob) {
     return {
@@ -153,7 +157,7 @@ export const optimizePhotoFile = async (file: File) => {
     };
   }
 
-  const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
+  const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', 0.78);
 
   return {
     blob: jpegBlob ?? file,
