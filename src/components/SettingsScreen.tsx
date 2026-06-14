@@ -151,12 +151,12 @@ function SettingsScreen({
               type="button"
               onClick={onClearLocalData}
             >
-              Apagar tudo e sair da conta
+              Apagar dados e deslogar
             </button>
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '6px' }}>
-            <b>Mantém login:</b> apaga cargas, histórico e Supabase, mas fica logado.<br />
-            <b>Apagar tudo:</b> zera o dispositivo e encerra a sessão.
+            <b>Mantém login:</b> apaga treinos e histórico, mas continua logado.<br />
+            <b>Apagar e deslogar:</b> zera os dados e encerra a sessão. A conta continua existindo e você pode entrar novamente.
           </p>
         </div>
 
