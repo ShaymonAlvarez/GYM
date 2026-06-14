@@ -3,12 +3,27 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-pdf': ['pdfjs-dist'],
+          'vendor-xlsx': ['xlsx-populate/browser/xlsx-populate-no-encryption.min.js', 'jszip'],
+          'vendor-export': ['jspdf', 'html2canvas'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-dexie': ['dexie'],
+        }
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       workbox: {
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/i\.ytimg\.com\/.*$/i,
