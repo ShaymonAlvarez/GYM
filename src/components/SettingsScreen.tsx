@@ -112,7 +112,6 @@ function SettingsScreen({
             <button
               className="btn btn--ghost btn--sm"
               type="button"
-              disabled={isSupabaseBusy}
               onClick={onSupabaseSignOut}
             >
               Desconectar conta
