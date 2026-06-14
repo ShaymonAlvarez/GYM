@@ -31,7 +31,8 @@ export const supabaseSingleton: GymSupabaseClient | null =
         auth: {
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true
+          detectSessionInUrl: true,
+          flowType: 'implicit'
         }
       })
     : null;
@@ -52,7 +53,8 @@ export const createGymSupabaseClient = (settings?: SupabaseSettings): GymSupabas
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      flowType: 'implicit'
     }
   });
 };
