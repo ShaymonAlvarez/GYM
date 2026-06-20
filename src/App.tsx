@@ -199,8 +199,13 @@ function App() {
       }
     }
 
-    // Cloud has data → it wins. Re-attach only this device's local videos on top.
-    if (remoteReachable && remoteState && supabaseClient) {
+    // A state only counts as "real data" if it has an imported program or
+    // archived history — an empty/seed row must never overwrite real data.
+    const hasData = (candidate: AppState | null): candidate is AppState =>
+      !!candidate && ((candidate.templates?.length ?? 0) > 0 || (candidate.archives?.length ?? 0) > 0);
+
+    // Cloud has real data → it wins. Re-attach only this device's local videos.
+    if (remoteReachable && hasData(remoteState) && supabaseClient) {
       const localVideos = (localState?.localMedia ?? []).filter((asset) => asset.type === 'video');
       let merged = normalizeAppState({
         ...remoteState,
@@ -214,14 +219,21 @@ function App() {
       return merged;
     }
 
-    // Cloud reachable but empty, and this device has data → first-time migration.
-    if (remoteReachable && !remoteState && localState && supabaseClient && supabaseUserRef.current) {
+    // Cloud empty / never synced (or only an empty row) while THIS device has
+    // real data → migrate local up. Guards against an empty cloud clobbering it.
+    if (remoteReachable && hasData(localState) && supabaseClient && supabaseUserRef.current) {
       try {
         await saveRemoteAppState(supabaseClient, supabaseUserRef.current, localState);
       } catch (error) {
         console.error('Falha ao migrar dados locais para o Supabase:', error);
       }
       return localState;
+    }
+
+    // Cloud reachable with a (possibly empty) row and neither side has real
+    // data → keep the cloud baseline so all devices share one empty state.
+    if (remoteReachable && remoteState) {
+      return remoteState;
     }
 
     // Offline (cloud unreachable) → never discard local data.
