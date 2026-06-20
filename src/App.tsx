@@ -29,8 +29,12 @@ import {
   supabaseSingleton,
   hasSupabaseConfig,
   deleteRemoteAppState,
-  uploadPhotoAsset
+  uploadPhotoAsset,
+  saveRemoteAppState,
+  loadRemoteAppState,
+  hydrateRemotePhotoUrls
 } from './lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry } from './types';
 
 const workbookLayout = sheetLayout as SheetLayout;
@@ -128,6 +132,13 @@ function App() {
   const [isLoginBusy, setIsLoginBusy] = useState(false);
   const pdfExportRef = useRef<HTMLDivElement | null>(null);
 
+  // Supabase is the source of truth. These refs coordinate the initial cloud
+  // hydration so we never push stale local data over good remote data.
+  const supabaseUserRef = useRef<User | null>(null);
+  const initialSyncDoneRef = useRef(false);
+  const canPushRemoteRef = useRef(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+
   // Use the singleton Supabase client — always available since .env.local is configured
   const supabaseClient = supabaseSingleton;
 
@@ -169,6 +180,58 @@ function App() {
     };
   }, []);
 
+  // Loads the canonical state: Supabase is the source of truth, IndexedDB is an
+  // offline cache that also holds videos (which never leave the device).
+  const hydrateInitialState = async (): Promise<AppState> => {
+    const { createEmptyAppState } = await import('./data/seedData');
+
+    const localRaw = await loadAppState();
+    const localState = localRaw && isAppState(localRaw) ? normalizeAppState(localRaw) : null;
+
+    let remoteState: AppState | null = null;
+    let remoteReachable = false;
+    if (supabaseClient) {
+      try {
+        remoteState = await loadRemoteAppState(supabaseClient);
+        remoteReachable = true;
+      } catch (error) {
+        console.error('Não foi possível carregar do Supabase:', error);
+      }
+    }
+
+    // Cloud has data → it wins. Re-attach only this device's local videos on top.
+    if (remoteReachable && remoteState && supabaseClient) {
+      const localVideos = (localState?.localMedia ?? []).filter((asset) => asset.type === 'video');
+      let merged = normalizeAppState({
+        ...remoteState,
+        localMedia: [...(remoteState.localMedia ?? []), ...localVideos]
+      });
+      try {
+        merged = await hydrateRemotePhotoUrls(supabaseClient, merged);
+      } catch (error) {
+        console.error('Não foi possível atualizar URLs das fotos:', error);
+      }
+      return merged;
+    }
+
+    // Cloud reachable but empty, and this device has data → first-time migration.
+    if (remoteReachable && !remoteState && localState && supabaseClient && supabaseUserRef.current) {
+      try {
+        await saveRemoteAppState(supabaseClient, supabaseUserRef.current, localState);
+      } catch (error) {
+        console.error('Falha ao migrar dados locais para o Supabase:', error);
+      }
+      return localState;
+    }
+
+    // Offline (cloud unreachable) → never discard local data.
+    if (localState) {
+      return localState;
+    }
+
+    return createEmptyAppState();
+  };
+
   // Check auth state on mount — if user has a valid session, auto-authenticate
   useEffect(() => {
     if (!supabaseClient) {
@@ -177,25 +240,31 @@ function App() {
 
     let isMounted = true;
 
-    const loadAndAuth = async (email: string | null | undefined) => {
+    const onSession = async (user: User) => {
       if (!isMounted) return;
-      setSupabaseUserEmail(email ?? null);
+      supabaseUserRef.current = user;
+      setSupabaseUserEmail(user.email ?? null);
       setIsAuthenticated(true);
-      const savedState = await loadAppState();
+
+      // Run the Supabase merge exactly once per session.
+      if (initialSyncDoneRef.current) return;
+      initialSyncDoneRef.current = true;
+
+      setSyncStatus('syncing');
+      const resolved = await hydrateInitialState();
       if (!isMounted) return;
-      const { createEmptyAppState } = await import('./data/seedData');
-      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
-      // Don't overwrite already-loaded state (e.g. if both getSession + SIGNED_IN fire)
-      setAppState((prev) => prev ?? nextState);
-      if (!savedState || !isAppState(savedState)) {
-        void saveAppState(nextState);
-      }
+
+      setAppState(resolved);
+      void saveAppState(resolved);
+      // Only now is it safe to start mirroring local changes back to the cloud.
+      canPushRemoteRef.current = true;
+      setSyncStatus('synced');
     };
 
     // Initial session check (handles page refresh with existing session)
     void supabaseClient.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
-        void loadAndAuth(data.session.user.email);
+        void onSession(data.session.user);
       }
     });
 
@@ -204,12 +273,15 @@ function App() {
       data: { subscription }
     } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (!session) {
+        supabaseUserRef.current = null;
+        initialSyncDoneRef.current = false;
+        canPushRemoteRef.current = false;
         setIsAuthenticated(false);
         setSupabaseUserEmail(null);
         return;
       }
       if (event === 'SIGNED_IN') {
-        void loadAndAuth(session.user.email);
+        void onSession(session.user);
       }
     });
 
@@ -217,6 +289,7 @@ function App() {
       isMounted = false;
       subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabaseClient]);
 
   useEffect(() => {
@@ -231,9 +304,22 @@ function App() {
         setLastSavedAt(new Date());
         setSaveStatus('saved');
       });
+
+      // Mirror everything (except videos) to Supabase — the cloud is the source of
+      // truth. createRemoteStatePayload strips videos, so they stay on-device only.
+      if (canPushRemoteRef.current && supabaseClient && supabaseUserRef.current) {
+        setSyncStatus('syncing');
+        void saveRemoteAppState(supabaseClient, supabaseUserRef.current, appState)
+          .then(() => setSyncStatus('synced'))
+          .catch((error) => {
+            console.error('Não foi possível sincronizar com o Supabase:', error);
+            setSyncStatus('error');
+          });
+      }
     }, 180);
 
     return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState]);
 
   useEffect(() => {
@@ -386,16 +472,9 @@ function App() {
 
       if (error) throw error;
 
+      // The SIGNED_IN auth event triggers hydrateInitialState (Supabase-first) above.
       setLoginPassword('');
       setIsAuthenticated(true);
-
-      const savedState = await loadAppState();
-      const { createEmptyAppState } = await import('./data/seedData');
-      const nextState = savedState && isAppState(savedState) ? normalizeAppState(savedState) : createEmptyAppState();
-      setAppState(nextState);
-      if (!savedState || !isAppState(savedState)) {
-        void saveAppState(nextState);
-      }
     } catch (error) {
       setLoginError(friendlyAuthError(error));
     } finally {
@@ -473,6 +552,9 @@ function App() {
     if (supabaseClient) {
       await supabaseClient.auth.signOut();
     }
+    supabaseUserRef.current = null;
+    initialSyncDoneRef.current = false;
+    canPushRemoteRef.current = false;
     setIsAuthenticated(false);
     setSupabaseUserEmail(null);
     setLoginEmail('');
@@ -1277,7 +1359,24 @@ function App() {
           </p>
         </div>
         <div className="app-header-actions">
-          <span className={`save-indicator save-indicator--${saveStatus}`} />
+          {syncStatus === 'error' ? (
+            <span
+              title="Sem conexão com a nuvem. Suas alterações estão salvas neste aparelho e serão enviadas quando a conexão voltar."
+              style={{ fontSize: '0.7rem', opacity: 0.8 }}
+            >
+              ☁︎⚠︎
+            </span>
+          ) : null}
+          <span
+            className={`save-indicator save-indicator--${saveStatus}`}
+            title={
+              syncStatus === 'synced'
+                ? 'Sincronizado com a nuvem'
+                : syncStatus === 'syncing'
+                  ? 'Sincronizando com a nuvem...'
+                  : 'Salvo neste aparelho'
+            }
+          />
         </div>
       </header>
 
