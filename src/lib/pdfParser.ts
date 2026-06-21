@@ -96,6 +96,21 @@ function parseSetsCount(setsStr: string): number {
   return parseInt(setsStr, 10) || 1;
 }
 
+/**
+ * Classify a set band by its RIR, the way the PDF colors the rows:
+ *   RIR 4-5 → yellow (warmup) · RIR 2-3 → orange (working) · RIR 0-1 → red (failure).
+ * The lower bound of the RIR range is enough to pick the band. Classifying by RIR
+ * (instead of row position) handles exercises that skip a band — e.g. only
+ * yellow + red, with no orange row.
+ */
+function classifySetType(rir: string): 'yellow' | 'orange' | 'red' {
+  const lower = parseInt(rir, 10); // "4-5" → 4, "2-3" → 2, "0-1" → 0
+  if (Number.isNaN(lower)) return 'orange';
+  if (lower >= 4) return 'yellow';
+  if (lower >= 2) return 'orange';
+  return 'red';
+}
+
 function buildExercise(
   letter: string,
   rowNumber: number,
@@ -103,23 +118,24 @@ function buildExercise(
   notes: string,
   dataRows: DataRow[]
 ): ExerciseTemplate {
-  // First row = yellow (warmup), second = orange (working), third+ = red (failure)
+  // Each row's band comes from its RIR (see classifySetType); the SERIES column
+  // gives how many sets that band has. Counts accumulate per band.
   let yellowSets = 0;
   let orangeSets = 0;
   let redSets = 0;
-  
+
   const setDetails: any = {};
 
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
+  for (const row of dataRows) {
     const count = parseSetsCount(row.sets);
     const details = { reps: row.reps, rest: row.interval, rir: row.rir };
+    const type = classifySetType(row.rir);
 
-    if (i === 0) {
-      yellowSets = count;
+    if (type === 'yellow') {
+      yellowSets += count;
       setDetails.yellow = details;
-    } else if (i === 1) {
-      orangeSets = count;
+    } else if (type === 'orange') {
+      orangeSets += count;
       setDetails.orange = details;
     } else {
       redSets += count;

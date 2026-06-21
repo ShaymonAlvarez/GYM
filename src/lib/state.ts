@@ -187,67 +187,12 @@ export const formatWorkbookNumber = (value: number | null): string => {
   return String(Number(value.toFixed(2))).replace(/\.00$/, '');
 };
 
-// Known-correct set counts derived from the workout PDF (Treino Rayza Alvarez).
-// Used to auto-repair templates that were imported with an older parser version
-// that had orange/red counts swapped or otherwise wrong.
-const EXERCISE_COUNT_CORRECTIONS: Record<string, { yellow: number; orange: number; red: number }> = {
-  'CADEIRA ABDUTORA': { yellow: 3, orange: 2, red: 1 },
-  'ELEVAÇÃO PELVICA': { yellow: 3, orange: 1, red: 1 },
-  'LEG PRESS': { yellow: 3, orange: 1, red: 1 },
-  'CADEIRA EXTENSORA': { yellow: 3, orange: 2, red: 1 },
-  'CADEIRA FLEXORA': { yellow: 3, orange: 2, red: 1 },
-  'ELEVAÇÃO LATERAL C/H': { yellow: 3, orange: 2, red: 1 },
-  'SUPINO RETO MÁQUINA': { yellow: 3, orange: 2, red: 1 },
-  'PUXADA PRONADA POLIA': { yellow: 3, orange: 1, red: 1 },
-  'REMADA SERROTE': { yellow: 3, orange: 1, red: 1 },
-  'ROSCA DIRETA POLIA': { yellow: 3, orange: 1, red: 1 },
-  'RDL': { yellow: 3, orange: 1, red: 1 },
-  'MESA FLEXORA': { yellow: 3, orange: 2, red: 1 },
-  'DESENVOLVIMENTO C/H': { yellow: 3, orange: 2, red: 1 },
-  'PUXADA NEUTRA POLIA': { yellow: 3, orange: 1, red: 1 },
-  'REMADA PRONADA MÁQUINA': { yellow: 3, orange: 1, red: 1 },
-  'TRICEPS POLIA': { yellow: 3, orange: 1, red: 1 },
-};
-
-const repairExerciseTemplate = (
-  exercise: WorkoutTemplate['exercises'][number]
-): WorkoutTemplate['exercises'][number] => {
-  // Only repair PDF-imported exercises (they always have yellowSetCount defined).
-  // Seed-data exercises (yellowSetCount == null) are left untouched.
-  if (exercise.yellowSetCount == null) return exercise;
-
-  const correction = EXERCISE_COUNT_CORRECTIONS[exercise.name.toUpperCase().trim()];
-  if (!correction) return exercise;
-
-  if (
-    exercise.yellowSetCount === correction.yellow &&
-    exercise.orangeSetCount === correction.orange &&
-    exercise.redSetCount === correction.red
-  ) {
-    return exercise;
-  }
-
-  const expectedTotal = correction.yellow + correction.orange + correction.red;
-  return {
-    ...exercise,
-    yellowSetCount: correction.yellow,
-    orangeSetCount: correction.orange,
-    redSetCount: correction.red,
-    activeSlotIndices:
-      exercise.activeSlotIndices.length === expectedTotal
-        ? exercise.activeSlotIndices
-        : Array.from({ length: expectedTotal }, (_, i) => i),
-  };
-};
-
 export const normalizeAppState = (state: AppState): AppState => {
   const weekCount = FEEDBACK_WEEK_COUNT;
 
-  // Repair any templates that were imported with an older parser (wrong orange/red counts).
-  const templates = state.templates.map((template) => ({
-    ...template,
-    exercises: template.exercises.map(repairExerciseTemplate),
-  }));
+  // Set counts come straight from the PDF parser (classified by RIR). No
+  // hardcoded overrides — those fought the parser and corrupted new imports.
+  const templates = state.templates;
 
   const weeks = state.weeks.slice(0, weekCount).map((week, weekIndex) => ({
     ...week,
