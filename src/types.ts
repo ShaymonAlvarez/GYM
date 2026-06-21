@@ -7,6 +7,8 @@ export type SetEntry = {
   reps: string;
   activeSeconds?: number;
   restSeconds?: number;
+  /** Per-set target rest duration in seconds (configurable per series). */
+  restTarget?: number;
 };
 
 export type ExerciseSummary = {

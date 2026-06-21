@@ -117,7 +117,8 @@ function App() {
     accumulated: number;
     paused: boolean;
   } | null>(null);
-  const [restDurationSeconds, setRestDurationSeconds] = useState(90);
+  // Fallback rest duration for sets that don't have their own target yet.
+  const [restDurationSeconds] = useState(90);
   const [restTimer, setRestTimer] = useState<{
     exerciseId: string;
     slotIndex: number;
@@ -928,7 +929,18 @@ function App() {
       : activeSetTimer.accumulated + Math.floor((Date.now() - activeSetTimer.startedAt) / 1000);
     updateState((s) => patchSet(s, exerciseId, slotIndex, { activeSeconds: totalSeconds }));
     setActiveSetTimer(null);
-    setRestTimer({ exerciseId, slotIndex, startedAt: Date.now(), duration: restDurationSeconds });
+    // Use this set's own configured rest, falling back to the global default.
+    const week = appState?.weeks[appState.activeWeekIndex];
+    const setTarget = week?.workoutLogs
+      .find((wl) => wl.workoutId === appState?.activeWorkoutId)
+      ?.exerciseLogs.find((el) => el.exerciseId === exerciseId)
+      ?.sets.find((st) => st.slotIndex === slotIndex)?.restTarget;
+    setRestTimer({ exerciseId, slotIndex, startedAt: Date.now(), duration: setTarget ?? restDurationSeconds });
+  };
+
+  // Sets a single series' target rest duration (per-set rest configuration).
+  const handleSetRestTarget = (exerciseId: string, slotIndex: number, seconds: number) => {
+    updateState((s) => patchSet(s, exerciseId, slotIndex, { restTarget: seconds }));
   };
 
   // Finalize the REST countdown early: record only the rest that actually elapsed.
@@ -1287,7 +1299,7 @@ function App() {
             onSetTimerToggle={handleSetTimerToggle}
             onFinalizeSet={handleFinalizeSet}
             onClearSet={handleClearSet}
-            onRestDurationChange={setRestDurationSeconds}
+            onSetRestTargetChange={handleSetRestTarget}
             onFinishRest={handleFinishRest}
             onSave={() => void handleSubmitWorkout()}
             onCopyPrevious={handleCopyPreviousWeek}

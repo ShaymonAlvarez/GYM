@@ -275,8 +275,18 @@ export const normalizeAppState = (state: AppState): AppState => {
             );
             const sets = createEmptySetEntries(exerciseTemplate, valuesBySlot).map((set) => {
               const original = exerciseLog.sets.find((entry) => entry.slotIndex === set.slotIndex);
-              if (original && (original.activeSeconds !== undefined || original.restSeconds !== undefined)) {
-                return { ...set, activeSeconds: original.activeSeconds, restSeconds: original.restSeconds };
+              if (
+                original &&
+                (original.activeSeconds !== undefined ||
+                  original.restSeconds !== undefined ||
+                  original.restTarget !== undefined)
+              ) {
+                return {
+                  ...set,
+                  activeSeconds: original.activeSeconds,
+                  restSeconds: original.restSeconds,
+                  restTarget: original.restTarget
+                };
               }
               return set;
             });

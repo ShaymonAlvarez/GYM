@@ -271,7 +271,7 @@ type WorkoutScreenProps = {
   onSetTimerToggle: (exerciseId: string, slotIndex: number) => void;
   onFinalizeSet: (exerciseId: string, slotIndex: number) => void;
   onClearSet: (exerciseId: string, slotIndex: number) => void;
-  onRestDurationChange: (seconds: number) => void;
+  onSetRestTargetChange: (exerciseId: string, slotIndex: number, seconds: number) => void;
   onFinishRest: () => void;
   onSave: () => void;
   onCopyPrevious: () => void;
@@ -311,7 +311,7 @@ function WorkoutScreen({
   onSetTimerToggle,
   onFinalizeSet,
   onClearSet,
-  onRestDurationChange,
+  onSetRestTargetChange,
   onFinishRest,
   onSave,
   onCopyPrevious,
@@ -322,8 +322,7 @@ function WorkoutScreen({
   onWorkoutChange
 }: WorkoutScreenProps) {
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
-  const [restPickerExerciseId, setRestPickerExerciseId] = useState<string | null>(null);
-  const [repsPickerFor, setRepsPickerFor] = useState<{ exerciseId: string; slotIndex: number } | null>(null);
+  const [restPickerFor, setRestPickerFor] = useState<{ exerciseId: string; slotIndex: number } | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const toggleExercise = (id: string, event: React.MouseEvent) => {
@@ -338,6 +337,16 @@ function WorkoutScreen({
       ? activeSetTimer.accumulated
       : activeSetTimer.accumulated + Math.floor((now - activeSetTimer.startedAt) / 1000)
     : 0;
+
+  // Previous week's set values — shown as a faded placeholder so the loads can be
+  // compared without leaving the current week (never fills the actual input).
+  const prevWeek = appState.activeWeekIndex > 0 ? appState.weeks[appState.activeWeekIndex - 1] : null;
+  const getPrevSet = (exerciseId: string, slotIndex: number) => {
+    if (!prevWeek) return null;
+    const workoutLog = prevWeek.workoutLogs.find((w) => w.workoutId === activeWorkout.id);
+    const exerciseLog = workoutLog?.exerciseLogs.find((e) => e.exerciseId === exerciseId);
+    return exerciseLog?.sets.find((s) => s.slotIndex === slotIndex) ?? null;
+  };
 
   return (
     <div className="screen" key="workout">
@@ -535,6 +544,10 @@ function WorkoutScreen({
 
                       const details = template.setDetails?.[setEntry.type];
 
+                      const prevSet = getPrevSet(template.id, setEntry.slotIndex);
+                      const loadPlaceholder = prevSet?.load?.trim() ? prevSet.load : '0';
+                      const repsPlaceholder = prevSet?.reps?.trim() ? prevSet.reps : '0';
+
                       return (
                         <div
                           key={`${template.id}-${setEntry.slotIndex}`}
@@ -554,21 +567,25 @@ function WorkoutScreen({
                               <input
                                 className="set-field__input"
                                 inputMode="decimal"
-                                placeholder="0"
+                                placeholder={loadPlaceholder}
                                 value={setEntry.load}
                                 onChange={(e) =>
                                   onSetValueChange(template.id, setEntry.slotIndex, 'load', e.target.value)
                                 }
                               />
                             </label>
-                            <button
-                              type="button"
-                              className="set-field set-field--btn"
-                              onClick={() => setRepsPickerFor({ exerciseId: template.id, slotIndex: setEntry.slotIndex })}
-                            >
+                            <label className="set-field">
                               <span className="set-field__label">Reps</span>
-                              <span className="set-field__value">{setEntry.reps || '0'}</span>
-                            </button>
+                              <input
+                                className="set-field__input"
+                                inputMode="numeric"
+                                placeholder={repsPlaceholder}
+                                value={setEntry.reps}
+                                onChange={(e) =>
+                                  onSetValueChange(template.id, setEntry.slotIndex, 'reps', e.target.value)
+                                }
+                              />
+                            </label>
                             <div className="set-row__tools">
                               <button
                                 className={`set-timer-btn${isThisSetActive && !isThisSetPaused ? ' set-timer-btn--running' : ''}${isThisSetPaused ? ' set-timer-btn--paused' : ''}${isThisSetResting ? ' set-timer-btn--resting' : ''}`}
@@ -599,6 +616,19 @@ function WorkoutScreen({
                             </div>
                           </div>
 
+                          <div className="exercise-rest-trigger set-rest-trigger">
+                            <span>Descanso:</span>
+                            <button
+                              type="button"
+                              className="rest-trigger-btn"
+                              onClick={() => setRestPickerFor({ exerciseId: template.id, slotIndex: setEntry.slotIndex })}
+                            >
+                              <ClockIcon />
+                              <span>{formatRestLabel(setEntry.restTarget ?? restDurationSeconds)}</span>
+                              <ChevronDownIcon />
+                            </button>
+                          </div>
+
                           {setEntry.activeSeconds !== undefined && (
                             <div className="set-row__timing">
                               <span>⏱ {formatDuration(setEntry.activeSeconds)} ativo</span>
@@ -610,20 +640,6 @@ function WorkoutScreen({
                         </div>
                       );
                     })}
-                  </div>
-
-                  {/* CONTROLES DE DESCANSO */}
-                  <div className="exercise-rest-trigger">
-                    <span>Descanso:</span>
-                    <button
-                      type="button"
-                      className="rest-trigger-btn"
-                      onClick={() => setRestPickerExerciseId(template.id)}
-                    >
-                      <ClockIcon />
-                      <span>{formatRestLabel(restDurationSeconds)}</span>
-                      <ChevronDownIcon />
-                    </button>
                   </div>
 
                   {/* HISTÓRICO */}
@@ -731,34 +747,21 @@ function WorkoutScreen({
         </div>
       )}
 
-      {/* REST PICKER MODAL */}
-      {restPickerExerciseId && (() => {
-        const pickerTemplate = activeEntries.find((e) => e.template.id === restPickerExerciseId)?.template;
+      {/* REST PICKER MODAL — per set */}
+      {restPickerFor && (() => {
+        const entry = activeEntries.find((e) => e.template.id === restPickerFor.exerciseId);
+        const pickerTemplate = entry?.template;
         if (!pickerTemplate) return null;
-        const options = getRestOptions(pickerTemplate, restDurationSeconds);
+        const currentSet = entry?.log?.sets.find((s) => s.slotIndex === restPickerFor.slotIndex);
+        const current = currentSet?.restTarget ?? restDurationSeconds;
+        const options = getRestOptions(pickerTemplate, current);
         return (
           <ScrollPicker
-            title="Tempo de descanso"
-            value={String(restDurationSeconds)}
+            title="Descanso da série"
+            value={String(current)}
             options={options.map((s) => ({ value: String(s), label: formatRestLabel(s) }))}
-            onChange={(val) => onRestDurationChange(Number(val))}
-            onClose={() => setRestPickerExerciseId(null)}
-          />
-        );
-      })()}
-
-      {/* REPS PICKER MODAL */}
-      {repsPickerFor && (() => {
-        const repsSet = activeEntries
-          .find((e) => e.template.id === repsPickerFor.exerciseId)
-          ?.log?.sets.find((s) => s.slotIndex === repsPickerFor.slotIndex);
-        return (
-          <ScrollPicker
-            title="Repetições"
-            value={repsSet?.reps ?? ''}
-            options={Array.from({ length: 20 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
-            onChange={(val) => onSetValueChange(repsPickerFor.exerciseId, repsPickerFor.slotIndex, 'reps', val)}
-            onClose={() => setRepsPickerFor(null)}
+            onChange={(val) => onSetRestTargetChange(restPickerFor.exerciseId, restPickerFor.slotIndex, Number(val))}
+            onClose={() => setRestPickerFor(null)}
           />
         );
       })()}

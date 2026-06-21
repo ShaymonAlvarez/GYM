@@ -1089,26 +1089,6 @@ a {
   opacity: 0.45;
 }
 
-/* Reps field rendered as a button that opens the scroll picker */
-.set-field--btn {
-  cursor: pointer;
-  gap: 10px;
-}
-
-.set-field--btn:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.set-field__value {
-  min-width: 44px;
-  text-align: center;
-  color: var(--text);
-  font-size: 1.05rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
 .set-row__tools {
   display: flex;
   align-items: center;
@@ -2432,6 +2412,23 @@ a {
 .rest-trigger-btn > span {
   min-width: 42px;
   text-align: left;
+}
+
+/* Per-set rest control — compact variant so it sits tight under each series
+   without the heavy border/padding of the per-exercise footer. */
+.set-rest-trigger {
+  padding: 4px 2px 2px;
+  border-top: none;
+  gap: 8px;
+}
+
+.set-rest-trigger > span {
+  font-size: 0.62rem;
+}
+
+.set-rest-trigger .rest-trigger-btn {
+  padding: 3px 10px;
+  font-size: 0.78rem;
 }
 
 /* ── Centered scroll picker modal ── */
