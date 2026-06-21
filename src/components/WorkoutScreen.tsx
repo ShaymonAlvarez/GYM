@@ -553,13 +553,25 @@ function WorkoutScreen({
                           key={`${template.id}-${setEntry.slotIndex}`}
                           className={`set-row set-row--${setEntry.type}${(isThisSetActive && !isThisSetPaused) || isThisSetResting ? ' set-row--active' : ''}`}
                         >
-                          {details && (
-                            <div className="set-row__target">
-                              <span>{details.reps} reps</span>
-                              <span>{details.rest}</span>
-                              <span>RIR {details.rir}</span>
-                            </div>
-                          )}
+                          <div className="set-row__top">
+                            {details && (
+                              <div className="set-row__target">
+                                <span>{details.reps} reps</span>
+                                <span>{details.rest}</span>
+                                <span>RIR {details.rir}</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              className="rest-trigger-btn set-rest-btn"
+                              title="Tempo de descanso desta série"
+                              onClick={() => setRestPickerFor({ exerciseId: template.id, slotIndex: setEntry.slotIndex })}
+                            >
+                              <ClockIcon />
+                              <span>{formatRestLabel(setEntry.restTarget ?? restDurationSeconds)}</span>
+                              <ChevronDownIcon />
+                            </button>
+                          </div>
 
                           <div className="set-row__action">
                             <label className="set-field">
@@ -614,19 +626,6 @@ function WorkoutScreen({
                                 <ResetIcon />
                               </button>
                             </div>
-                          </div>
-
-                          <div className="exercise-rest-trigger set-rest-trigger">
-                            <span>Descanso:</span>
-                            <button
-                              type="button"
-                              className="rest-trigger-btn"
-                              onClick={() => setRestPickerFor({ exerciseId: template.id, slotIndex: setEntry.slotIndex })}
-                            >
-                              <ClockIcon />
-                              <span>{formatRestLabel(setEntry.restTarget ?? restDurationSeconds)}</span>
-                              <ChevronDownIcon />
-                            </button>
                           </div>
 
                           {setEntry.activeSeconds !== undefined && (

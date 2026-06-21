@@ -2370,23 +2370,6 @@ a {
   color: #fff;
 }
 
-.exercise-rest-trigger {
-  padding: 14px 16px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.exercise-rest-trigger span {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .rest-trigger-btn {
   margin-left: auto;
   display: flex;
@@ -2414,21 +2397,24 @@ a {
   text-align: left;
 }
 
-/* Per-set rest control — compact variant so it sits tight under each series
-   without the heavy border/padding of the per-exercise footer. */
-.set-rest-trigger {
-  padding: 4px 2px 2px;
-  border-top: none;
+/* Per-set rest control — sits on the card's first line, aligned to the right
+   next to the prescription pills (no "Descanso:" label). */
+.set-row__top {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.set-rest-trigger > span {
-  font-size: 0.62rem;
+.set-row__top .set-row__target {
+  flex: 1;
+  min-width: 0;
 }
 
-.set-rest-trigger .rest-trigger-btn {
-  padding: 3px 10px;
-  font-size: 0.78rem;
+.set-rest-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 5px 10px;
+  font-size: 0.8rem;
 }
 
 /* ── Centered scroll picker modal ── */
@@ -2558,14 +2544,6 @@ a {
 
   .settings-actions {
     grid-template-columns: 1fr;
-  }
-
-  .exercise-card__header {
-    flex-direction: column;
-  }
-
-  .exercise-actions {
-    width: 100%;
   }
 }
 
