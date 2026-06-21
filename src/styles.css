@@ -1024,15 +1024,15 @@ a {
 .set-row__target {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .set-row__target span {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: var(--radius-pill);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--set-text);
@@ -1044,17 +1044,19 @@ a {
 .set-row__action {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .set-field {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--glass-strong);
   border: 1px solid var(--input-border);
-  padding: 7px 12px;
+  padding: 7px 10px;
   border-radius: var(--radius-sm);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -1073,7 +1075,9 @@ a {
 }
 
 .set-field__input {
-  width: 44px;
+  flex: 1;
+  min-width: 0;
+  width: auto;
   background: transparent;
   border: none;
   color: var(--text);
@@ -2402,19 +2406,21 @@ a {
 .set-row__top {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .set-row__top .set-row__target {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .set-rest-btn {
   flex-shrink: 0;
   margin-left: auto;
-  padding: 5px 10px;
-  font-size: 0.8rem;
+  gap: 6px;
+  padding: 5px 9px;
+  font-size: 0.78rem;
 }
 
 /* ── Centered scroll picker modal ── */
@@ -2544,6 +2550,30 @@ a {
 
   .settings-actions {
     grid-template-columns: 1fr;
+  }
+
+  /* Keep the workout set card to two tidy rows on narrow phones. */
+  .set-timer-btn,
+  .set-clear-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .set-field__input {
+    font-size: 0.98rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .set-row__target span {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+  }
+
+  .set-timer-btn,
+  .set-clear-btn {
+    width: 32px;
+    height: 32px;
   }
 }
 
