@@ -11,6 +11,7 @@ import {
 } from '../data/feedback';
 import type { AppState, SheetLayout, SummaryMetrics, WorkoutLog } from '../types';
 import { formatWorkbookNumber } from './state';
+import { getVisibleWeeks } from './state';
 
 const WORKBOOK_SHEET_NAME = 'cargas - Planilha para acompanh';
 const FEEDBACK_SHEET_NAME = 'feedback - Feedback do per\u00edodo';
@@ -314,7 +315,7 @@ export const buildSheetDisplayValues = (
       values[`R${rowNumber}`] = formatWorkbookNumber(selectedSummary.totalLoad);
       values[`S${rowNumber}`] = formatWorkbookNumber(selectedSummary.averageReps);
 
-      state.weeks.forEach((_, weekIndex) => {
+      getVisibleWeeks(state).slice(0, 6).forEach((_, weekIndex) => {
         const pair = SUMMARY_COLUMN_PAIRS[weekIndex];
         const summary = getExerciseSummary(state, weekIndex, workout.id, exercise.id);
 
@@ -323,11 +324,6 @@ export const buildSheetDisplayValues = (
       });
     });
   });
-
-  if (state.weeks.length < 7) {
-    values.AF3 = '';
-    values.AG3 = '';
-  }
 
   return values;
 };
@@ -421,7 +417,7 @@ export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: num
         writeEditableCell(sheet, `${pair.reps}${rowNumber}`, toWorkbookNumberInput(setEntry.reps));
       });
 
-      state.weeks.forEach((_, weekIndex) => {
+      getVisibleWeeks(state).slice(0, 6).forEach((_, weekIndex) => {
         const pair = SUMMARY_COLUMN_PAIRS[weekIndex];
         const summary = getExerciseSummary(state, weekIndex, workout.id, exercise.id);
 

@@ -1,6 +1,7 @@
 import type { FeedbackState } from '../types';
 
 export const FEEDBACK_WEEK_COUNT = 6;
+export const MAX_WEEK_COUNT = 7;
 
 const GOOD_AVERAGE_BAD = ['Boa', 'Media', 'Ruim'];
 const GOOD_AVERAGE_BAD_MASCULINE = ['Bom', 'Medio', 'Ruim'];

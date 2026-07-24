@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AppState, LocalMediaAsset } from '../types';
 import CustomSelect from './CustomSelect';
+import { getVisibleWeeks } from '../lib/state';
 
 const ShareIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -79,6 +80,7 @@ function MediaScreen({
   onWorkoutChange,
   formatBytes
 }: MediaScreenProps) {
+  const visibleWeeks = getVisibleWeeks(appState);
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -158,7 +160,7 @@ function MediaScreen({
         <CustomSelect
           value={String(appState.activeWeekIndex)}
           onChange={(val) => onWeekChange(Number(val))}
-          options={appState.weeks.map((week) => ({
+          options={visibleWeeks.map((week) => ({
             value: String(week.index),
             label: week.label
           }))}

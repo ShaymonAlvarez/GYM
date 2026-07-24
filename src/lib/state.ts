@@ -8,7 +8,7 @@ import type {
   WorkoutLog,
   WorkoutTemplate
 } from '../types';
-import { FEEDBACK_WEEK_COUNT, normalizeFeedbackState } from '../data/feedback';
+import { MAX_WEEK_COUNT, normalizeFeedbackState } from '../data/feedback';
 
 const parseNumber = (value: string): number | null => {
   const normalized = value.replace(',', '.').trim();
@@ -188,7 +188,7 @@ export const formatWorkbookNumber = (value: number | null): string => {
 };
 
 export const normalizeAppState = (state: AppState): AppState => {
-  const weekCount = FEEDBACK_WEEK_COUNT;
+  const weekCount = MAX_WEEK_COUNT;
 
   // Set counts come straight from the PDF parser (classified by RIR). No
   // hardcoded overrides — those fought the parser and corrupted new imports.
@@ -262,11 +262,31 @@ export const normalizeAppState = (state: AppState): AppState => {
     })()
   }));
 
+  if (state.preferences?.week7Enabled && weeks.length < MAX_WEEK_COUNT) {
+    weeks.push({
+      index: 6,
+      label: 'Semana 7',
+      workoutLogs: templates.map((template) => ({
+        workoutId: template.id,
+        exerciseLogs: template.exercises.map((exercise) => ({
+          exerciseId: exercise.id,
+          sets: createEmptySetEntries(exercise),
+          summary: calculateSummaryFromSets(
+            { sets: createEmptySetEntries(exercise) },
+            state.preferences?.hideWarmupSets
+          )
+        }))
+      }))
+    });
+  }
+
+  const visibleWeekCount = state.preferences?.week7Enabled ? MAX_WEEK_COUNT : Math.min(6, weeks.length);
+
   return {
     ...state,
     templates,
     weeks,
-    activeWeekIndex: weeks.length > 0 ? Math.min(Math.max(state.activeWeekIndex, 0), weeks.length - 1) : 0,
+    activeWeekIndex: Math.min(Math.max(state.activeWeekIndex, 0), Math.max(visibleWeekCount - 1, 0)),
     feedback: normalizeFeedbackState(state.feedback, weeks.length),
     localMedia: (state.localMedia ?? []).filter((asset) => asset.weekIndex < weeks.length),
     supabase: {
@@ -278,6 +298,9 @@ export const normalizeAppState = (state: AppState): AppState => {
     preferences: state.preferences ?? {}
   };
 };
+
+export const getVisibleWeeks = (state: Pick<AppState, 'weeks' | 'preferences'>) =>
+  state.preferences?.week7Enabled ? state.weeks.slice(0, MAX_WEEK_COUNT) : state.weeks.slice(0, 6);
 
 const looksLikeExerciseTemplate = (
   value: unknown

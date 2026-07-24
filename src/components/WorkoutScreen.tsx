@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSession } from '../types';
 import CustomSelect from './CustomSelect';
 import ScrollPicker from './ScrollPicker';
+import { getVisibleWeeks } from '../lib/state';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -321,6 +322,7 @@ function WorkoutScreen({
   onWeekChange,
   onWorkoutChange
 }: WorkoutScreenProps) {
+  const visibleWeeks = getVisibleWeeks(appState);
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
   const [restPickerFor, setRestPickerFor] = useState<{ exerciseId: string; slotIndex: number } | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -405,7 +407,7 @@ function WorkoutScreen({
         <CustomSelect
           value={String(appState.activeWeekIndex)}
           onChange={(val) => onWeekChange(Number(val))}
-          options={appState.weeks.map((week) => {
+          options={visibleWeeks.map((week) => {
             const summary = getWeekSummary(week);
             const kg = formatMetric(summary.totalLoad, 0);
             return {
@@ -646,7 +648,7 @@ function WorkoutScreen({
                     <summary>Ver histórico completo</summary>
                     <div className="history-accordion-content">
                       <div className="history-strip" aria-label={`Histórico de ${template.name}`}>
-                        {appState.weeks.map((week) => {
+                        {visibleWeeks.map((week) => {
                           const workoutLog = week.workoutLogs.find((entry) => entry.workoutId === activeWorkout.id);
                           const exerciseLog = workoutLog?.exerciseLogs.find(
                             (entry) => entry.exerciseId === template.id
