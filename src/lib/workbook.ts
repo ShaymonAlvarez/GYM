@@ -11,6 +11,7 @@ import {
 } from '../data/feedback';
 import type { AppState, SheetLayout, SummaryMetrics, WorkoutLog } from '../types';
 import { formatWorkbookNumber } from './state';
+import { getVisibleWeeks } from './state';
 
 const WORKBOOK_SHEET_NAME = 'cargas - Planilha para acompanh';
 const FEEDBACK_SHEET_NAME = 'feedback - Feedback do per\u00edodo';
@@ -59,6 +60,7 @@ type WorkbookSheet = {
 };
 type WorkbookInstance = {
   sheet: (name: string) => WorkbookSheet;
+  addSheet: (name: string) => WorkbookSheet;
   outputAsync: () => Promise<Blob>;
   _node?: { children?: Array<{ name: string; attributes: Record<string, string> }> };
 };
@@ -314,7 +316,7 @@ export const buildSheetDisplayValues = (
       values[`R${rowNumber}`] = formatWorkbookNumber(selectedSummary.totalLoad);
       values[`S${rowNumber}`] = formatWorkbookNumber(selectedSummary.averageReps);
 
-      state.weeks.forEach((_, weekIndex) => {
+      getVisibleWeeks(state).slice(0, 6).forEach((_, weekIndex) => {
         const pair = SUMMARY_COLUMN_PAIRS[weekIndex];
         const summary = getExerciseSummary(state, weekIndex, workout.id, exercise.id);
 
@@ -323,11 +325,6 @@ export const buildSheetDisplayValues = (
       });
     });
   });
-
-  if (state.weeks.length < 7) {
-    values.AF3 = '';
-    values.AG3 = '';
-  }
 
   return values;
 };
@@ -376,6 +373,47 @@ const exportFeedbackSheets = (workbook: WorkbookInstance, state: AppState) => {
   writeEditableCell(feedbackSheet, `${PHOTO_COLUMN}${PHOTO_COLUMN_ROW}`, hasWeekSixPhotos ? 'Sim' : 'Não');
 };
 
+const exportWeekSevenSheet = (workbook: WorkbookInstance, state: AppState) => {
+  if (!state.preferences?.week7Enabled || !state.weeks[6]) {
+    return;
+  }
+
+  const sheet = workbook.addSheet('Semana 7');
+  const feedbackState = normalizeFeedbackState(state.feedback, state.weeks.length);
+  let rowNumber = 1;
+
+  sheet.cell(`A${rowNumber}`).value('Semana 7 - cargas e feedback');
+  rowNumber += 2;
+  sheet.cell(`A${rowNumber}`).value('Treino');
+  sheet.cell(`B${rowNumber}`).value('Exercício');
+  sheet.cell(`C${rowNumber}`).value('Carga total');
+  sheet.cell(`D${rowNumber}`).value('Média de repetições');
+
+  state.templates.forEach((workout) => {
+    workout.exercises.forEach((exercise) => {
+      rowNumber += 1;
+      const summary = getExerciseSummary(state, 6, workout.id, exercise.id);
+      sheet.cell(`A${rowNumber}`).value(workout.name);
+      sheet.cell(`B${rowNumber}`).value(exercise.name);
+      sheet.cell(`C${rowNumber}`).value(summary.totalLoad ?? '');
+      sheet.cell(`D${rowNumber}`).value(summary.averageReps ?? '');
+    });
+  });
+
+  rowNumber += 2;
+  sheet.cell(`A${rowNumber}`).value('Feedback');
+  sheet.cell(`B${rowNumber}`).value('Resposta');
+  FEEDBACK_QUESTIONS.forEach((question, questionIndex) => {
+    rowNumber += 1;
+    sheet.cell(`A${rowNumber}`).value(question.fullText);
+    sheet.cell(`B${rowNumber}`).value(feedbackState.weeklyAnswers[6]?.[questionIndex] ?? '');
+  });
+
+  rowNumber += 2;
+  sheet.cell(`A${rowNumber}`).value('Comentários');
+  sheet.cell(`B${rowNumber}`).value(feedbackState.weeklyComments[6] ?? '');
+};
+
 export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: number): Promise<void> => {
   const { workbook, templateData } = await loadTemplateWorkbook();
   const sheet = workbook.sheet(WORKBOOK_SHEET_NAME);
@@ -421,7 +459,7 @@ export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: num
         writeEditableCell(sheet, `${pair.reps}${rowNumber}`, toWorkbookNumberInput(setEntry.reps));
       });
 
-      state.weeks.forEach((_, weekIndex) => {
+      getVisibleWeeks(state).slice(0, 6).forEach((_, weekIndex) => {
         const pair = SUMMARY_COLUMN_PAIRS[weekIndex];
         const summary = getExerciseSummary(state, weekIndex, workout.id, exercise.id);
 
@@ -432,6 +470,7 @@ export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: num
   });
 
   exportFeedbackSheets(workbook, state);
+  exportWeekSevenSheet(workbook, state);
 
   const workbookBlob = await workbook.outputAsync();
   const workbookWithFormulas = await restoreTemplateFormulas(templateData, workbookBlob);

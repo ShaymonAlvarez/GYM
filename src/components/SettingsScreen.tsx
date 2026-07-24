@@ -4,6 +4,7 @@ import type { FeedbackState } from '../types';
 
 type PreviewTab = 'cargas' | 'feedback' | 'comentarios';
 import WorkbookSheet from './WorkbookSheet';
+import { getVisibleWeeks } from '../lib/state';
 
 const SunIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -50,6 +51,7 @@ type SettingsScreenProps = {
   onToggleSheetPreview: () => void;
   onChangeTheme: (theme: 'light' | 'dark' | 'system') => void;
   onToggleHideWarmupSets: (hide: boolean) => void;
+  onToggleWeek7: (enabled: boolean) => void;
   onImportPdf: (file: File) => void;
   onClearLocalData: () => void;
   onClearAllData: () => void;
@@ -74,6 +76,7 @@ function SettingsScreen({
   onToggleSheetPreview,
   onChangeTheme,
   onToggleHideWarmupSets,
+  onToggleWeek7,
   onImportPdf,
   onClearLocalData,
   onClearAllData,
@@ -82,6 +85,7 @@ function SettingsScreen({
   const activeWeek = appState.weeks[appState.activeWeekIndex] ?? appState.weeks[0] ?? { index: 0, label: 'Semana 1', workoutLogs: [] };
   const isDark = (appState.theme ?? 'dark') !== 'light';
   const [previewTab, setPreviewTab] = useState<PreviewTab>('cargas');
+  const visibleWeeks = getVisibleWeeks(appState);
 
   return (
     <div className="screen" key="settings">
@@ -138,6 +142,20 @@ function SettingsScreen({
               }}
             />
           </label>
+          <label className="switch-row">
+            <div className="switch-toggle">
+              <input
+                type="checkbox"
+                checked={appState.preferences?.week7Enabled ?? false}
+                onChange={(event) => onToggleWeek7(event.target.checked)}
+              />
+              <span className="switch-toggle__track" />
+            </div>
+            <span>Habilitar Semana 7</span>
+          </label>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '6px' }}>
+            Ao desabilitar, os dados da Semana 7 ficam preservados e apenas deixam de aparecer.
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
             <button
               className="btn btn--ghost btn--full"
@@ -242,7 +260,7 @@ function SettingsScreen({
                   <thead>
                     <tr>
                       <th>Pergunta</th>
-                      {appState.weeks.map((week) => (
+                      {visibleWeeks.map((week) => (
                         <th key={week.index}>{week.label}</th>
                       ))}
                     </tr>
@@ -251,7 +269,7 @@ function SettingsScreen({
                     {feedbackQuestions.map((question, questionIndex) => (
                       <tr key={question.rowNumber}>
                         <td>{question.text}</td>
-                        {appState.weeks.map((week) => (
+                        {visibleWeeks.map((week) => (
                           <td key={week.index}>
                             {feedbackState.weeklyAnswers[week.index]?.[questionIndex] ?? ''}
                           </td>
@@ -264,7 +282,7 @@ function SettingsScreen({
               {previewTab === 'comentarios' && (
                 <table className="pdf-table pdf-table--comments">
                   <tbody>
-                    {appState.weeks.map((week) => (
+                    {visibleWeeks.map((week) => (
                       <tr key={week.index}>
                         <th>{week.label}</th>
                         <td>{feedbackState.weeklyComments[week.index] ?? ''}</td>
@@ -300,7 +318,7 @@ function SettingsScreen({
               <thead>
                 <tr>
                   <th>Pergunta</th>
-                  {appState.weeks.map((week) => (
+                  {visibleWeeks.map((week) => (
                     <th key={week.index}>{week.label}</th>
                   ))}
                 </tr>
@@ -309,7 +327,7 @@ function SettingsScreen({
                 {feedbackQuestions.map((question, questionIndex) => (
                   <tr key={question.rowNumber}>
                     <td>{question.text}</td>
-                    {appState.weeks.map((week) => (
+                    {visibleWeeks.map((week) => (
                       <td key={week.index}>
                         {feedbackState.weeklyAnswers[week.index]?.[questionIndex] ?? ''}
                       </td>
@@ -323,7 +341,7 @@ function SettingsScreen({
             <h2>Feedback comentários</h2>
             <table className="pdf-table pdf-table--comments">
               <tbody>
-                {appState.weeks.map((week) => (
+                {visibleWeeks.map((week) => (
                   <tr key={week.index}>
                     <th>{week.label}</th>
                     <td>{feedbackState.weeklyComments[week.index] ?? ''}</td>

@@ -121,6 +121,7 @@ export type AppState = {
   theme?: 'light' | 'dark' | 'system';
   preferences?: {
     hideWarmupSets?: boolean;
+    week7Enabled?: boolean;
   };
   archives?: ArchivedPeriod[];
   workoutSessions?: WorkoutSession[];

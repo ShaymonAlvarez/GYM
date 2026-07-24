@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AppState } from '../types';
 import type { FeedbackState } from '../types';
 import CustomSelect from './CustomSelect';
+import { getVisibleWeeks } from '../lib/state';
 
 type FeedbackQuestion = {
   rowNumber: number;
@@ -111,6 +112,7 @@ function FeedbackScreen({
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const activeWeekIndex = appState.activeWeekIndex;
   const activeWeekLabel = appState.weeks[activeWeekIndex]?.label ?? '';
+  const visibleWeeks = getVisibleWeeks(appState);
 
   const toggle = (idx: number) => {
     setExpanded(prev => {
@@ -128,7 +130,7 @@ function FeedbackScreen({
         <CustomSelect
           value={String(activeWeekIndex)}
           onChange={(val) => onWeekChange(Number(val))}
-          options={appState.weeks.map((week) => ({
+          options={visibleWeeks.map((week) => ({
             value: String(week.index),
             label: week.label
           }))}

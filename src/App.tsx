@@ -416,7 +416,7 @@ function App() {
         return {
           ...currentState,
           templates,
-          weeks: Array.from({ length: FEEDBACK_WEEK_COUNT }, (_, i) => ({
+          weeks: Array.from({ length: currentState.preferences?.week7Enabled ? 7 : FEEDBACK_WEEK_COUNT }, (_, i) => ({
             index: i,
             label: `Semana ${i + 1}`,
             workoutLogs: [],
@@ -424,7 +424,7 @@ function App() {
           })),
           activeWeekIndex: 0,
           activeWorkoutId: templates[0]?.id ?? '',
-          feedback: createEmptyFeedbackState(),
+          feedback: createEmptyFeedbackState(currentState.preferences?.week7Enabled ? 7 : FEEDBACK_WEEK_COUNT),
           archives: [...(currentState.archives || []), archivedPeriod]
         };
       });
@@ -1364,6 +1364,11 @@ function App() {
             onToggleSheetPreview={() => setIsSheetPreviewVisible((v) => !v)}
             onChangeTheme={(theme) => updateState((s) => ({ ...s, theme }))}
             onToggleHideWarmupSets={(hide) => updateState((s) => ({ ...s, preferences: { ...s.preferences, hideWarmupSets: hide } }))}
+            onToggleWeek7={(enabled) => updateState((s) => ({
+              ...s,
+              activeWeekIndex: enabled ? s.activeWeekIndex : Math.min(s.activeWeekIndex, 5),
+              preferences: { ...s.preferences, week7Enabled: enabled }
+            }))}
             onImportPdf={handleImportPdf}
             onClearLocalData={() => void handleClearLocalData()}
             onClearAllData={() => void handleClearAllData()}

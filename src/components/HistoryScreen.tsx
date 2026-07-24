@@ -47,7 +47,8 @@ function buildHistory(appState: AppState): Map<string, ExerciseEntry> {
 
   periods.forEach((period, periodIndex) => {
     const templates = period.state.templates ?? [];
-    const weeks = period.state.weeks ?? [];
+    const allWeeks = period.state.weeks ?? [];
+    const weeks = period.state.preferences?.week7Enabled ? allWeeks.slice(0, 7) : allWeeks.slice(0, 6);
 
     templates.forEach((template) => {
       template.exercises.forEach((exercise) => {
