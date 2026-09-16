@@ -3288,3 +3288,57 @@ a {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ═══════════════════════════════════════════
+   ABDÔMEN / PANTURRILHA E CARDIO (controle pessoal)
+   ═══════════════════════════════════════════ */
+
+.extras-card {
+  --workout-accent: var(--text-tertiary);
+}
+
+.extras-card__badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 0.64rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.extras-card__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 8px;
+}
+
+.extras-card__input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.extras-card__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.extras-card__minutes {
+  flex: 0 1 160px;
+}
+
+@media (max-width: 360px) {
+  .extras-card__fields {
+    grid-template-columns: 1fr;
+  }
+}

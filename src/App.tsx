@@ -25,7 +25,8 @@ import {
 } from './lib/state';
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
 import { parseWorkoutPdf } from './lib/pdfParser';
-import { fillSetFromPrevious, getPreviousSetValue } from './lib/previousValues';
+import { fillSetFromPrevious, getPreviousAccessorySet, getPreviousSetValue } from './lib/previousValues';
+import { ACCESSORY_SET_COUNT } from './lib/state';
 import { WORKOUT_GROUP_COUNT, adaptSheetLayout, buildExerciseGroupLayout, getExerciseGroupLayout } from './lib/exerciseLayout';
 import {
   supabaseSingleton,
@@ -37,7 +38,7 @@ import {
   hydrateRemotePhotoUrls
 } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry } from './types';
+import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry, WorkoutExtras } from './types';
 
 const baseWorkbookLayout = sheetLayout as SheetLayout;
 type SaveStatus = 'saved' | 'saving' | 'dirty';
@@ -738,6 +739,8 @@ function App() {
                 const currentWorkoutLog = week.workoutLogs.find((log) => log.workoutId === workoutLog.workoutId);
                 return {
                   ...workoutLog,
+                  // Abdômen/Panturrilha e Cardio da semana atual também são preservados.
+                  extras: currentWorkoutLog?.extras,
                   exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
                     const currentComment = currentWorkoutLog?.exerciseLogs.find(
                       (log) => log.exerciseId === exerciseLog.exerciseId
@@ -771,6 +774,46 @@ function App() {
         };
       })
     }));
+  };
+
+  // Atualiza os blocos Abdômen/Panturrilha e Cardio do treino ativo na semana ativa.
+  const updateActiveWorkoutExtras = (state: AppState, updater: (extras: WorkoutExtras) => WorkoutExtras): AppState => ({
+    ...state,
+    weeks: state.weeks.map((week) => {
+      if (week.index !== state.activeWeekIndex) return week;
+      return {
+        ...week,
+        workoutLogs: week.workoutLogs.map((wl) =>
+          wl.workoutId === state.activeWorkoutId ? { ...wl, extras: updater(wl.extras ?? {}) } : wl
+        )
+      };
+    })
+  });
+
+  const withAccessory = (extras: WorkoutExtras) => ({
+    kind: extras.accessory?.kind ?? ('abs' as const),
+    name: extras.accessory?.name ?? '',
+    sets: Array.from({ length: ACCESSORY_SET_COUNT }, (_, index) => extras.accessory?.sets[index] ?? { load: '', reps: '' })
+  });
+
+  const handleAccessorySetChange = (setIndex: number, field: 'load' | 'reps', value: string) => {
+    const sanitizedValue = sanitizeNumericInput(value);
+    updateState((s) =>
+      updateActiveWorkoutExtras(s, (extras) => {
+        const accessory = withAccessory(extras);
+        const otherField = field === 'load' ? 'reps' : 'load';
+        // Mesma regra das séries: ao digitar um campo, o outro (se vazio) assume o valor anterior.
+        const previous = sanitizedValue
+          ? getPreviousAccessorySet(s, s.activeWeekIndex, s.activeWorkoutId, accessory.kind, setIndex)
+          : null;
+        const sets = accessory.sets.map((set, index) => {
+          if (index !== setIndex) return set;
+          const updated = { ...set, [field]: sanitizedValue };
+          return previous && !updated[otherField].trim() ? { ...updated, [otherField]: previous[otherField] } : updated;
+        });
+        return { ...extras, accessory: { ...accessory, sets } };
+      })
+    );
   };
 
   const handleClearWeek = () => {
@@ -1363,6 +1406,28 @@ function App() {
             onClearExercise={handleClearExercise}
             onClearExerciseForWeek={handleClearExerciseForWeek}
             onExerciseCommentChange={handleExerciseCommentChange}
+            getPreviousAccessorySet={(kind, setIndex) =>
+              getPreviousAccessorySet(appState, appState.activeWeekIndex, activeWorkout.id, kind, setIndex)
+            }
+            onAccessoryKindChange={(kind) =>
+              updateState((s) => updateActiveWorkoutExtras(s, (extras) => ({ ...extras, accessory: { ...withAccessory(extras), kind } })))
+            }
+            onAccessoryNameChange={(name) =>
+              updateState((s) => updateActiveWorkoutExtras(s, (extras) => ({ ...extras, accessory: { ...withAccessory(extras), name } })))
+            }
+            onAccessorySetChange={handleAccessorySetChange}
+            onCardioChange={(field, value) =>
+              updateState((s) =>
+                updateActiveWorkoutExtras(s, (extras) => ({
+                  ...extras,
+                  cardio: {
+                    minutes: extras.cardio?.minutes ?? '',
+                    description: extras.cardio?.description ?? '',
+                    [field]: field === 'minutes' ? value.replace(/[^0-9]/g, '') : value
+                  }
+                }))
+              )
+            }
           />
         );
 

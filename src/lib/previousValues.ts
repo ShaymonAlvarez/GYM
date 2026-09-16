@@ -1,4 +1,4 @@
-import type { AppState, SetEntry, WeekLog, WorkoutTemplate } from '../types';
+import type { AccessoryKind, AppState, SetEntry, WeekLog, WorkoutTemplate } from '../types';
 
 export type PreviousSetValue = { load: string; reps: string };
 
@@ -82,6 +82,47 @@ export const getPreviousSetValue = (
     const candidate = sameType[Math.min(ordinal, sameType.length - 1)];
     if (candidate && hasValue(candidate)) {
       return { load: candidate.load, reps: candidate.reps };
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Último valor do bloco Abdômen/Panturrilha do mesmo tipo, na mesma ordem de busca
+ * das séries: treinos anteriores da semana ativa, semanas anteriores e blocos arquivados.
+ */
+export const getPreviousAccessorySet = (
+  state: Pick<AppState, 'templates' | 'weeks' | 'archives'>,
+  weekIndex: number,
+  workoutId: string,
+  kind: AccessoryKind,
+  setIndex: number
+): PreviousSetValue | null => {
+  const findInWeek = (week: WeekLog | undefined, workouts: WorkoutTemplate[]) => {
+    for (const workout of [...workouts].reverse()) {
+      const accessory = week?.workoutLogs.find((log) => log.workoutId === workout.id)?.extras?.accessory;
+      const set = accessory?.kind === kind ? accessory.sets[setIndex] : undefined;
+      if (set && (set.load.trim() || set.reps.trim())) return { load: set.load, reps: set.reps };
+    }
+    return null;
+  };
+
+  const templates = state.templates;
+  const workoutPosition = templates.findIndex((workout) => workout.id === workoutId);
+  const inWeek = findInWeek(state.weeks[weekIndex], workoutPosition > 0 ? templates.slice(0, workoutPosition) : []);
+  if (inWeek) return inWeek;
+
+  for (let index = weekIndex - 1; index >= 0; index -= 1) {
+    const found = findInWeek(state.weeks[index], templates);
+    if (found) return found;
+  }
+
+  for (const archive of [...(state.archives ?? [])].reverse()) {
+    const archivedWeeks = archive.state.weeks ?? [];
+    for (let index = archivedWeeks.length - 1; index >= 0; index -= 1) {
+      const found = findInWeek(archivedWeeks[index], archive.state.templates ?? []);
+      if (found) return found;
     }
   }
 

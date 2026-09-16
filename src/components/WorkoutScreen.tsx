@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
-import type { AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSession } from '../types';
+import type { AccessoryKind, AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSession } from '../types';
 import CustomSelect from './CustomSelect';
 import ScrollPicker from './ScrollPicker';
+import WorkoutExtras from './WorkoutExtras';
 import { getVisibleWeeks } from '../lib/state';
 import { collectExerciseComments, getPreviousSetValue } from '../lib/previousValues';
+import type { PreviousSetValue } from '../lib/previousValues';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -281,6 +283,11 @@ type WorkoutScreenProps = {
   onClearExercise: (exerciseId: string) => void;
   onClearExerciseForWeek: (exerciseId: string, weekIndex: number) => void;
   onExerciseCommentChange: (exerciseId: string, value: string) => void;
+  getPreviousAccessorySet: (kind: AccessoryKind, setIndex: number) => PreviousSetValue | null;
+  onAccessoryKindChange: (kind: AccessoryKind) => void;
+  onAccessoryNameChange: (name: string) => void;
+  onAccessorySetChange: (setIndex: number, field: 'load' | 'reps', value: string) => void;
+  onCardioChange: (field: 'minutes' | 'description', value: string) => void;
   onWeekChange: (weekIndex: number) => void;
   onWorkoutChange: (workoutId: string) => void;
 };
@@ -322,6 +329,11 @@ function WorkoutScreen({
   onClearExercise,
   onClearExerciseForWeek,
   onExerciseCommentChange,
+  getPreviousAccessorySet,
+  onAccessoryKindChange,
+  onAccessoryNameChange,
+  onAccessorySetChange,
+  onCardioChange,
   onWeekChange,
   onWorkoutChange
 }: WorkoutScreenProps) {
@@ -726,6 +738,15 @@ function WorkoutScreen({
             </article>
           );
         })}
+
+        <WorkoutExtras
+          extras={appState.weeks[appState.activeWeekIndex]?.workoutLogs.find((wl) => wl.workoutId === activeWorkout.id)?.extras}
+          getPreviousAccessorySet={getPreviousAccessorySet}
+          onAccessoryKindChange={onAccessoryKindChange}
+          onAccessoryNameChange={onAccessoryNameChange}
+          onAccessorySetChange={onAccessorySetChange}
+          onCardioChange={onCardioChange}
+        />
       </div>
 
       {/* DYNAMIC ISLAND — SET TIMER (count up) */}
