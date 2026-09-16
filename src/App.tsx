@@ -25,6 +25,7 @@ import {
 } from './lib/state';
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
 import { parseWorkoutPdf } from './lib/pdfParser';
+import { WORKOUT_GROUP_COUNT, adaptSheetLayout, buildExerciseGroupLayout, getExerciseGroupLayout } from './lib/exerciseLayout';
 import {
   supabaseSingleton,
   hasSupabaseConfig,
@@ -37,7 +38,7 @@ import {
 import type { User } from '@supabase/supabase-js';
 import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry } from './types';
 
-const workbookLayout = sheetLayout as SheetLayout;
+const baseWorkbookLayout = sheetLayout as SheetLayout;
 type SaveStatus = 'saved' | 'saving' | 'dirty';
 
 const getCompletion = (workoutLog: AppState['weeks'][number]['workoutLogs'][number]) => {
@@ -368,9 +369,14 @@ function App() {
     }
   }, [appState?.theme]);
 
+  const workbookLayout = useMemo(
+    () => (appState ? adaptSheetLayout(baseWorkbookLayout, getExerciseGroupLayout(appState.templates)) : baseWorkbookLayout),
+    [appState?.templates]
+  );
+
   const workbookCellValues = useMemo(
     () => (appState ? buildSheetDisplayValues(appState, workbookLayout, appState.activeWeekIndex) : {}),
-    [appState]
+    [appState, workbookLayout]
   );
 
   const updateState = (updater: (currentState: AppState) => AppState) => {
@@ -389,21 +395,19 @@ function App() {
         return;
       }
 
-      // Mapeia cada exercício para a linha absoluta correta da planilha modelo.
-      // A planilha tem grupos fixos separados por linha amarela:
-      // Treino 1 -> linhas 5-9, Treino 2 -> 11-15, Treino 3 -> 17-21, Treino 4 -> 23-27.
-      const EXERCISE_GROUP_START_ROWS = [5, 11, 17, 23];
-      const GROUP_CAPACITY = 5;
-      const templates = parsedTemplates
-        .slice(0, EXERCISE_GROUP_START_ROWS.length)
-        .map((template, workoutIndex) => ({
-          ...template,
-          exercises: template.exercises.slice(0, GROUP_CAPACITY).map((exercise, exerciseIndex) => ({
-            ...exercise,
-            ...lookupExerciseVideo(exercise.name),
-            rowNumber: EXERCISE_GROUP_START_ROWS[workoutIndex] + exerciseIndex
-          }))
-        }));
+      // Mapeia cada exercício para a linha absoluta da planilha. Cada treino ocupa um
+      // grupo separado por linha amarela (5 linhas por padrão: 5-9, 11-15, 17-21, 23-27);
+      // treinos com mais exercícios aumentam o grupo e deslocam os seguintes.
+      const workouts = parsedTemplates.slice(0, WORKOUT_GROUP_COUNT);
+      const groupLayout = buildExerciseGroupLayout(workouts.map((template) => template.exercises.length));
+      const templates = workouts.map((template, workoutIndex) => ({
+        ...template,
+        exercises: template.exercises.map((exercise, exerciseIndex) => ({
+          ...exercise,
+          ...lookupExerciseVideo(exercise.name),
+          rowNumber: groupLayout.groups[workoutIndex].startRow + exerciseIndex
+        }))
+      }));
 
       updateState((currentState) => {
         const archivedPeriod: ArchivedPeriod = {

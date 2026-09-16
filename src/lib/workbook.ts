@@ -10,6 +10,12 @@ import {
   normalizeFeedbackState
 } from '../data/feedback';
 import type { AppState, SheetLayout, SummaryMetrics, WorkoutLog } from '../types';
+import {
+  getExerciseGroupLayout,
+  isDefaultExerciseGroupLayout,
+  restructureCargasSheetXml,
+  type ExerciseGroupLayout
+} from './exerciseLayout';
 import { formatWorkbookNumber } from './state';
 import { getVisibleWeeks } from './state';
 
@@ -35,14 +41,6 @@ const SUMMARY_COLUMN_PAIRS = [
   { load: 'AD', reps: 'AE' },
   { load: 'AF', reps: 'AG' }
 ];
-// Linhas de exercício da planilha modelo, agrupadas por treino e separadas por
-// linha amarela (5-9, 11-15, 17-21, 23-27). Usadas para limpar resíduos do modelo
-// antes de escrever os exercícios importados.
-const EXERCISE_GROUP_START_ROWS = [5, 11, 17, 23];
-const EXERCISE_GROUP_CAPACITY = 5;
-const ALL_EXERCISE_ROWS = EXERCISE_GROUP_START_ROWS.flatMap((start) =>
-  Array.from({ length: EXERCISE_GROUP_CAPACITY }, (_, offset) => start + offset)
-);
 // Colunas semanais de resumo (T..AE) — exclui AF/AG, que são fórmulas de progressão.
 const WEEKLY_SUMMARY_COLUMNS = SUMMARY_COLUMN_PAIRS.slice(0, 6).flatMap((pair) => [pair.load, pair.reps]);
 // Aba de período: coluna H ("Semana 6 FOTOS") recebe Sim/Não.
@@ -273,7 +271,7 @@ export const buildSheetDisplayValues = (
   const values = createBaseCellMap(layout);
 
   // Limpa resíduos do modelo nas linhas de exercício (ver exportWorkbookFile).
-  ALL_EXERCISE_ROWS.forEach((rowNumber) => {
+  getExerciseGroupLayout(state.templates).exerciseRows.forEach((rowNumber) => {
     ['A', 'B', 'C', ...SERIES_COLUMN_PAIRS.flatMap((pair) => [pair.load, pair.reps]), ...WEEKLY_SUMMARY_COLUMNS].forEach(
       (column) => {
         values[`${column}${rowNumber}`] = '';
@@ -329,14 +327,46 @@ export const buildSheetDisplayValues = (
   return values;
 };
 
-const loadTemplateWorkbook = async (): Promise<LoadedWorkbook> => {
+/**
+ * Quando algum treino tem mais de 5 exercícios, reorganiza as linhas da aba de cargas
+ * no próprio modelo (antes de carregá-lo), para que fórmulas, estilos e a restauração
+ * de fórmulas usem os mesmos endereços. O calcChain é removido — o Excel o recria.
+ */
+const restructureTemplate = async (templateData: ArrayBuffer, groupLayout: ExerciseGroupLayout) => {
+  const zip = await JSZip.loadAsync(templateData);
+  const workbookXml = await zip.file('xl/workbook.xml')!.async('string');
+  const relsXml = await zip.file('xl/_rels/workbook.xml.rels')!.async('string');
+  const sheetTag = (workbookXml.match(/<sheet [^>]*\/>/g) ?? []).find((tag) => tag.includes(`name="${WORKBOOK_SHEET_NAME}"`));
+  const relationId = sheetTag ? /r:id="([^"]+)"/.exec(sheetTag)?.[1] : undefined;
+  const relationTag = (relsXml.match(/<Relationship [^>]*\/>/g) ?? []).find((tag) => tag.includes(`Id="${relationId}"`));
+  const target = relationTag ? /Target="([^"]+)"/.exec(relationTag)?.[1] : undefined;
+  const sheetFile = target ? zip.file(`xl/${target.replace(/^\/?xl\//, '')}`) : null;
+
+  if (!sheetFile) {
+    throw new Error('Nao foi possivel localizar a aba de cargas na planilha modelo.');
+  }
+
+  zip.file(sheetFile.name, restructureCargasSheetXml(await sheetFile.async('string'), groupLayout));
+
+  zip.remove('xl/calcChain.xml');
+  zip.file('xl/_rels/workbook.xml.rels', relsXml.replace(/<Relationship [^>]*Target="calcChain\.xml"\/>/, ''));
+  const contentTypesXml = await zip.file('[Content_Types].xml')!.async('string');
+  zip.file('[Content_Types].xml', contentTypesXml.replace(/<Override [^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/, ''));
+
+  return zip.generateAsync({ type: 'arraybuffer' });
+};
+
+const loadTemplateWorkbook = async (groupLayout: ExerciseGroupLayout): Promise<LoadedWorkbook> => {
   const response = await fetch(WORKBOOK_TEMPLATE_URL);
 
   if (!response.ok) {
     throw new Error('Nao foi possivel carregar a planilha modelo.');
   }
 
-  const templateData = await response.arrayBuffer();
+  const originalTemplateData = await response.arrayBuffer();
+  const templateData = isDefaultExerciseGroupLayout(groupLayout)
+    ? originalTemplateData
+    : await restructureTemplate(originalTemplateData, groupLayout);
 
   return {
     workbook: await XlsxPopulate.fromDataAsync(templateData.slice(0)),
@@ -415,7 +445,8 @@ const exportWeekSevenSheet = (workbook: WorkbookInstance, state: AppState) => {
 };
 
 export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: number): Promise<void> => {
-  const { workbook, templateData } = await loadTemplateWorkbook();
+  const groupLayout = getExerciseGroupLayout(state.templates);
+  const { workbook, templateData } = await loadTemplateWorkbook(groupLayout);
   const sheet = workbook.sheet(WORKBOOK_SHEET_NAME);
 
   markWorkbookForRecalculation(workbook);
@@ -423,7 +454,7 @@ export const exportWorkbookFile = async (state: AppState, selectedWeekIndex: num
   // Limpa todas as linhas de exercício do modelo (nome, séries recomendadas, séries
   // temporárias e resumos semanais) para que importações com menos exercícios não
   // mantenham dados antigos da planilha modelo. R/S e AF/AG são fórmulas (preservadas).
-  ALL_EXERCISE_ROWS.forEach((rowNumber) => {
+  groupLayout.exerciseRows.forEach((rowNumber) => {
     ['A', 'B', 'C', ...SERIES_COLUMN_PAIRS.flatMap((pair) => [pair.load, pair.reps]), ...WEEKLY_SUMMARY_COLUMNS].forEach(
       (column) => writeEditableCell(sheet, `${column}${rowNumber}`, '')
     );
