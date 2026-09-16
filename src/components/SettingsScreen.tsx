@@ -5,6 +5,7 @@ import type { FeedbackState } from '../types';
 type PreviewTab = 'cargas' | 'feedback' | 'comentarios';
 import WorkbookSheet from './WorkbookSheet';
 import { getVisibleWeeks } from '../lib/state';
+import type { FeedbackQuestion } from '../data/feedback';
 
 const SunIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -26,12 +27,6 @@ const MoonIcon = () => (
   </svg>
 );
 
-type FeedbackQuestion = {
-  rowNumber: number;
-  text: string;
-  fullText?: string;
-  options: string[];
-};
 
 type SettingsScreenProps = {
   appState: AppState;
@@ -266,12 +261,12 @@ function SettingsScreen({
                     </tr>
                   </thead>
                   <tbody>
-                    {feedbackQuestions.map((question, questionIndex) => (
+                    {feedbackQuestions.map((question) => (
                       <tr key={question.rowNumber}>
                         <td>{question.text}</td>
                         {visibleWeeks.map((week) => (
                           <td key={week.index}>
-                            {feedbackState.weeklyAnswers[week.index]?.[questionIndex] ?? ''}
+                            {feedbackState.weeklyAnswers[week.index]?.[question.answerIndex] ?? ''}
                           </td>
                         ))}
                       </tr>
@@ -324,12 +319,12 @@ function SettingsScreen({
                 </tr>
               </thead>
               <tbody>
-                {feedbackQuestions.map((question, questionIndex) => (
+                {feedbackQuestions.map((question) => (
                   <tr key={question.rowNumber}>
                     <td>{question.text}</td>
                     {visibleWeeks.map((week) => (
                       <td key={week.index}>
-                        {feedbackState.weeklyAnswers[week.index]?.[questionIndex] ?? ''}
+                        {feedbackState.weeklyAnswers[week.index]?.[question.answerIndex] ?? ''}
                       </td>
                     ))}
                   </tr>

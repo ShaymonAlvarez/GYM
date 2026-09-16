@@ -684,11 +684,11 @@ function App() {
     });
   };
 
-  const updateFeedbackAnswer = (questionIndex: number, value: string) => {
+  const updateFeedbackAnswer = (answerIndex: number, value: string) => {
     updateState((currentState) => {
       const nextFeedback = normalizeFeedbackState(currentState.feedback, currentState.weeks.length);
 
-      nextFeedback.weeklyAnswers[currentState.activeWeekIndex][questionIndex] = value;
+      nextFeedback.weeklyAnswers[currentState.activeWeekIndex][answerIndex] = value;
 
       return {
         ...currentState,

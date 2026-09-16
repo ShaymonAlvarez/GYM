@@ -3342,3 +3342,18 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* Pergunta com várias opções (lista suspensa) */
+.feedback-select {
+  width: 136px;
+}
+
+.feedback-select .custom-select__trigger {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.feedback-card__footer .feedback-select {
+  flex: 1 1 auto;
+}
