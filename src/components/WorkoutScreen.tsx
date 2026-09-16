@@ -3,7 +3,7 @@ import type { AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSe
 import CustomSelect from './CustomSelect';
 import ScrollPicker from './ScrollPicker';
 import { getVisibleWeeks } from '../lib/state';
-import { getPreviousSetValue } from '../lib/previousValues';
+import { collectExerciseComments, getPreviousSetValue } from '../lib/previousValues';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -280,6 +280,7 @@ type WorkoutScreenProps = {
   onClearWeek: () => void;
   onClearExercise: (exerciseId: string) => void;
   onClearExerciseForWeek: (exerciseId: string, weekIndex: number) => void;
+  onExerciseCommentChange: (exerciseId: string, value: string) => void;
   onWeekChange: (weekIndex: number) => void;
   onWorkoutChange: (workoutId: string) => void;
 };
@@ -320,6 +321,7 @@ function WorkoutScreen({
   onClearWeek,
   onClearExercise,
   onClearExerciseForWeek,
+  onExerciseCommentChange,
   onWeekChange,
   onWorkoutChange
 }: WorkoutScreenProps) {
@@ -640,6 +642,19 @@ function WorkoutScreen({
                     })}
                   </div>
 
+                  {/* COMENTÁRIO DA SEMANA */}
+                  <div className="exercise-comment">
+                    <label className="feedback-field">
+                      <span>Comentário da {appState.weeks[appState.activeWeekIndex]?.label ?? 'semana'}</span>
+                      <textarea
+                        rows={2}
+                        placeholder="Ex.: 2 anilhas de 10 por lado · série 2 pareceu mais difícil"
+                        value={log.comment ?? ''}
+                        onChange={(e) => onExerciseCommentChange(template.id, e.target.value)}
+                      />
+                    </label>
+                  </div>
+
                   {/* HISTÓRICO */}
                   <details className="history-accordion">
                     <summary>Ver histórico completo</summary>
@@ -691,6 +706,19 @@ function WorkoutScreen({
                           );
                         })}
                       </div>
+                      {(() => {
+                        const comments = collectExerciseComments(appState, template.name, visibleWeeks.length);
+                        return comments.length ? (
+                          <ul className="exercise-comment-history" aria-label={`Comentários de ${template.name}`}>
+                            {comments.map((entry) => (
+                              <li key={entry.key}>
+                                <strong>{entry.label}</strong>
+                                <p>{entry.comment}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null;
+                      })()}
                     </div>
                   </details>
                 </>

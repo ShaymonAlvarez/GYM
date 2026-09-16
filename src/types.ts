@@ -55,6 +55,8 @@ export type ExerciseLog = {
   exerciseId: string;
   sets: SetEntry[];
   summary: ExerciseSummary;
+  /** Comentário livre da semana para este exercício (não vai para a planilha). */
+  comment?: string;
 };
 
 export type WorkoutLog = {

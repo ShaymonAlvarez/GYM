@@ -3243,3 +3243,48 @@ a {
   margin-bottom: 2px;
 }
 
+
+/* ═══════════════════════════════════════════
+   COMENTÁRIO POR EXERCÍCIO
+   ═══════════════════════════════════════════ */
+
+.exercise-comment {
+  padding: 0 16px 16px;
+}
+
+.exercise-comment .feedback-field textarea {
+  min-height: 56px;
+}
+
+.exercise-comment-history {
+  list-style: none;
+  margin: 8px 16px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exercise-comment-history li {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.exercise-comment-history strong {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.exercise-comment-history p {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

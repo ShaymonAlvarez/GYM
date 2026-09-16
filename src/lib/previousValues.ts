@@ -88,6 +88,52 @@ export const getPreviousSetValue = (
   return null;
 };
 
+export type ExerciseCommentEntry = { key: string; label: string; comment: string };
+
+/**
+ * Comentários já registrados para exercícios com o mesmo nome: semanas do bloco
+ * atual (mais recentes primeiro) e blocos arquivados.
+ */
+export const collectExerciseComments = (
+  state: Pick<AppState, 'templates' | 'weeks' | 'archives'>,
+  exerciseName: string,
+  weekCount: number
+): ExerciseCommentEntry[] => {
+  const targetName = normalizeExerciseName(exerciseName);
+  const entries: ExerciseCommentEntry[] = [];
+
+  const collect = (weeks: WeekLog[], workouts: WorkoutTemplate[], prefix: string, keyPrefix: string) => {
+    for (let weekIndex = weeks.length - 1; weekIndex >= 0; weekIndex -= 1) {
+      workouts.forEach((workout) => {
+        const workoutLog = weeks[weekIndex].workoutLogs.find((log) => log.workoutId === workout.id);
+        workout.exercises
+          .filter((exercise) => normalizeExerciseName(exercise.name) === targetName)
+          .forEach((exercise) => {
+            const comment = workoutLog?.exerciseLogs.find((log) => log.exerciseId === exercise.id)?.comment?.trim();
+            if (comment) {
+              entries.push({
+                key: `${keyPrefix}-${weekIndex}-${exercise.id}`,
+                label: `${prefix}S${weekIndex + 1} · ${workout.name}`,
+                comment
+              });
+            }
+          });
+      });
+    }
+  };
+
+  collect(state.weeks.slice(0, weekCount), state.templates, '', 'current');
+  [...(state.archives ?? [])].reverse().forEach((archive) => {
+    const archivedAt = new Date(archive.archivedAt);
+    const prefix = Number.isNaN(archivedAt.getTime())
+      ? 'Bloco anterior · '
+      : `Bloco até ${archivedAt.toLocaleDateString('pt-BR')} · `;
+    collect(archive.state.weeks ?? [], archive.state.templates ?? [], prefix, archive.id);
+  });
+
+  return entries;
+};
+
 /** Preenche os campos vazios da série com o valor anterior (sem sobrescrever o que já foi digitado). */
 export const fillSetFromPrevious = (set: SetEntry, previous: PreviousSetValue | null): SetEntry => {
   if (!previous) return set;

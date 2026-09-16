@@ -733,13 +733,44 @@ function App() {
         week.index === currentState.activeWeekIndex
           ? {
               ...week,
-              workoutLogs: structuredClone(currentState.weeks[currentState.activeWeekIndex - 1].workoutLogs)
+              // Copia só as cargas: comentários da semana atual são preservados.
+              workoutLogs: structuredClone(currentState.weeks[currentState.activeWeekIndex - 1].workoutLogs).map((workoutLog) => {
+                const currentWorkoutLog = week.workoutLogs.find((log) => log.workoutId === workoutLog.workoutId);
+                return {
+                  ...workoutLog,
+                  exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
+                    const currentComment = currentWorkoutLog?.exerciseLogs.find(
+                      (log) => log.exerciseId === exerciseLog.exerciseId
+                    )?.comment;
+                    return { ...exerciseLog, comment: currentComment };
+                  })
+                };
+              })
             }
           : week
       )
     }));
 
     setFlashMessage('Semana anterior copiada.');
+  };
+
+  const handleExerciseCommentChange = (exerciseId: string, value: string) => {
+    updateState((s) => ({
+      ...s,
+      weeks: s.weeks.map((week) => {
+        if (week.index !== s.activeWeekIndex) return week;
+        return {
+          ...week,
+          workoutLogs: week.workoutLogs.map((wl) => {
+            if (wl.workoutId !== s.activeWorkoutId) return wl;
+            return {
+              ...wl,
+              exerciseLogs: wl.exerciseLogs.map((el) => (el.exerciseId === exerciseId ? { ...el, comment: value } : el))
+            };
+          })
+        };
+      })
+    }));
   };
 
   const handleClearWeek = () => {
@@ -1331,6 +1362,7 @@ function App() {
             onClearWeek={handleClearWeek}
             onClearExercise={handleClearExercise}
             onClearExerciseForWeek={handleClearExerciseForWeek}
+            onExerciseCommentChange={handleExerciseCommentChange}
           />
         );
 
