@@ -25,6 +25,7 @@ import {
 } from './lib/state';
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
 import { parseWorkoutPdf } from './lib/pdfParser';
+import { fillSetFromPrevious, getPreviousSetValue } from './lib/previousValues';
 import { WORKOUT_GROUP_COUNT, adaptSheetLayout, buildExerciseGroupLayout, getExerciseGroupLayout } from './lib/exerciseLayout';
 import {
   supabaseSingleton,
@@ -647,9 +648,16 @@ function App() {
                   return exerciseLog;
                 }
 
-                const nextSets = exerciseLog.sets.map((setEntry) =>
-                  setEntry.slotIndex === slotIndex ? { ...setEntry, [field]: sanitizedValue } : setEntry
-                );
+                // Ao digitar um dos campos, o outro (se vazio) assume o valor anterior.
+                const otherField = field === 'load' ? 'reps' : 'load';
+                const previous = sanitizedValue
+                  ? getPreviousSetValue(currentState, currentState.activeWeekIndex, currentState.activeWorkoutId, exerciseId, slotIndex)
+                  : null;
+                const nextSets = exerciseLog.sets.map((setEntry) => {
+                  if (setEntry.slotIndex !== slotIndex) return setEntry;
+                  const updated = { ...setEntry, [field]: sanitizedValue };
+                  return previous && !updated[otherField].trim() ? { ...updated, [otherField]: previous[otherField] } : updated;
+                });
 
                 return {
                   ...exerciseLog,
@@ -837,6 +845,18 @@ function App() {
     })
   });
 
+  // Torna reais os valores anteriores (antes só exibidos como placeholder) nos campos vazios da série.
+  const activatePreviousValues = (state: AppState, exerciseId: string, slotIndex: number): AppState => {
+    const previous = getPreviousSetValue(state, state.activeWeekIndex, state.activeWorkoutId, exerciseId, slotIndex);
+    const currentSet = state.weeks[state.activeWeekIndex]?.workoutLogs
+      .find((wl) => wl.workoutId === state.activeWorkoutId)
+      ?.exerciseLogs.find((el) => el.exerciseId === exerciseId)
+      ?.sets.find((set) => set.slotIndex === slotIndex);
+    if (!previous || !currentSet) return state;
+    const filled = fillSetFromPrevious(currentSet, previous);
+    return patchSet(state, exerciseId, slotIndex, { load: filled.load, reps: filled.reps });
+  };
+
   const handleWorkoutPauseToggle = () => {
     if (!workoutStartedAt || workoutEndedAt) return;
     if (workoutTimerPaused) {
@@ -921,6 +941,7 @@ function App() {
         recordRestElapsed(restTimer);
         setRestTimer(null);
       }
+      updateState((s) => activatePreviousValues(s, exerciseId, slotIndex));
       setActiveSetTimer({ exerciseId, slotIndex, startedAt: Date.now(), accumulated: 0, paused: false });
     }
   };
@@ -931,7 +952,7 @@ function App() {
     const totalSeconds = activeSetTimer.paused
       ? activeSetTimer.accumulated
       : activeSetTimer.accumulated + Math.floor((Date.now() - activeSetTimer.startedAt) / 1000);
-    updateState((s) => patchSet(s, exerciseId, slotIndex, { activeSeconds: totalSeconds }));
+    updateState((s) => activatePreviousValues(patchSet(s, exerciseId, slotIndex, { activeSeconds: totalSeconds }), exerciseId, slotIndex));
     setActiveSetTimer(null);
     // Use this set's own configured rest, falling back to the global default.
     const week = appState?.weeks[appState.activeWeekIndex];

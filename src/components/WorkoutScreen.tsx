@@ -3,6 +3,7 @@ import type { AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSe
 import CustomSelect from './CustomSelect';
 import ScrollPicker from './ScrollPicker';
 import { getVisibleWeeks } from '../lib/state';
+import { getPreviousSetValue } from '../lib/previousValues';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -340,15 +341,11 @@ function WorkoutScreen({
       : activeSetTimer.accumulated + Math.floor((now - activeSetTimer.startedAt) / 1000)
     : 0;
 
-  // Previous week's set values — shown as a faded placeholder so the loads can be
-  // compared without leaving the current week (never fills the actual input).
-  const prevWeek = appState.activeWeekIndex > 0 ? appState.weeks[appState.activeWeekIndex - 1] : null;
-  const getPrevSet = (exerciseId: string, slotIndex: number) => {
-    if (!prevWeek) return null;
-    const workoutLog = prevWeek.workoutLogs.find((w) => w.workoutId === activeWorkout.id);
-    const exerciseLog = workoutLog?.exerciseLogs.find((e) => e.exerciseId === exerciseId);
-    return exerciseLog?.sets.find((s) => s.slotIndex === slotIndex) ?? null;
-  };
+  // Último valor registrado do mesmo exercício (qualquer treino/semana/bloco anterior),
+  // exibido como placeholder. Vira valor real ao iniciar/finalizar a série ou ao
+  // digitar só um dos campos (ver App).
+  const getPrevSet = (exerciseId: string, slotIndex: number) =>
+    getPreviousSetValue(appState, appState.activeWeekIndex, activeWorkout.id, exerciseId, slotIndex);
 
   return (
     <div className="screen" key="workout">
