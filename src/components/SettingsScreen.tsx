@@ -4,6 +4,7 @@ import type { FeedbackState } from '../types';
 
 type PreviewTab = 'cargas' | 'feedback' | 'comentarios';
 import WorkbookSheet from './WorkbookSheet';
+import FeedbackSheet from './FeedbackSheet';
 import { getVisibleWeeks } from '../lib/state';
 import type { FeedbackQuestion } from '../data/feedback';
 
@@ -251,28 +252,7 @@ function SettingsScreen({
                 <WorkbookSheet cellValues={workbookCellValues} layout={workbookLayout} />
               )}
               {previewTab === 'feedback' && (
-                <table className="pdf-table">
-                  <thead>
-                    <tr>
-                      <th>Pergunta</th>
-                      {visibleWeeks.map((week) => (
-                        <th key={week.index}>{week.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {feedbackQuestions.map((question) => (
-                      <tr key={question.rowNumber}>
-                        <td>{question.text}</td>
-                        {visibleWeeks.map((week) => (
-                          <td key={week.index}>
-                            {feedbackState.weeklyAnswers[week.index]?.[question.answerIndex] ?? ''}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <FeedbackSheet questions={feedbackQuestions} weeks={visibleWeeks} feedbackState={feedbackState} />
               )}
               {previewTab === 'comentarios' && (
                 <table className="pdf-table pdf-table--comments">
@@ -308,29 +288,7 @@ function SettingsScreen({
             <WorkbookSheet cellValues={workbookCellValues} layout={workbookLayout} />
           </section>
           <section className="pdf-page">
-            <h2>Feedback do período</h2>
-            <table className="pdf-table">
-              <thead>
-                <tr>
-                  <th>Pergunta</th>
-                  {visibleWeeks.map((week) => (
-                    <th key={week.index}>{week.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {feedbackQuestions.map((question) => (
-                  <tr key={question.rowNumber}>
-                    <td>{question.text}</td>
-                    {visibleWeeks.map((week) => (
-                      <td key={week.index}>
-                        {feedbackState.weeklyAnswers[week.index]?.[question.answerIndex] ?? ''}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <FeedbackSheet questions={feedbackQuestions} weeks={visibleWeeks} feedbackState={feedbackState} />
           </section>
           <section className="pdf-page">
             <h2>Feedback comentários</h2>
