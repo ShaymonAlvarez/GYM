@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
-import type { AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSession } from '../types';
+import type { AccessoryKind, AppState, ExerciseTemplate, ExerciseLog, SummaryMetrics, WorkoutSession } from '../types';
 import CustomSelect from './CustomSelect';
 import ScrollPicker from './ScrollPicker';
+import WorkoutExtras from './WorkoutExtras';
 import { getVisibleWeeks } from '../lib/state';
+import { collectExerciseComments, getPreviousSetValue } from '../lib/previousValues';
+import type { PreviousSetValue } from '../lib/previousValues';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -279,6 +282,12 @@ type WorkoutScreenProps = {
   onClearWeek: () => void;
   onClearExercise: (exerciseId: string) => void;
   onClearExerciseForWeek: (exerciseId: string, weekIndex: number) => void;
+  onExerciseCommentChange: (exerciseId: string, value: string) => void;
+  getPreviousAccessorySet: (kind: AccessoryKind, setIndex: number) => PreviousSetValue | null;
+  onAccessoryKindChange: (kind: AccessoryKind) => void;
+  onAccessoryNameChange: (name: string) => void;
+  onAccessorySetChange: (setIndex: number, field: 'load' | 'reps', value: string) => void;
+  onCardioChange: (field: 'minutes' | 'description', value: string) => void;
   onWeekChange: (weekIndex: number) => void;
   onWorkoutChange: (workoutId: string) => void;
 };
@@ -319,6 +328,12 @@ function WorkoutScreen({
   onClearWeek,
   onClearExercise,
   onClearExerciseForWeek,
+  onExerciseCommentChange,
+  getPreviousAccessorySet,
+  onAccessoryKindChange,
+  onAccessoryNameChange,
+  onAccessorySetChange,
+  onCardioChange,
   onWeekChange,
   onWorkoutChange
 }: WorkoutScreenProps) {
@@ -340,15 +355,11 @@ function WorkoutScreen({
       : activeSetTimer.accumulated + Math.floor((now - activeSetTimer.startedAt) / 1000)
     : 0;
 
-  // Previous week's set values — shown as a faded placeholder so the loads can be
-  // compared without leaving the current week (never fills the actual input).
-  const prevWeek = appState.activeWeekIndex > 0 ? appState.weeks[appState.activeWeekIndex - 1] : null;
-  const getPrevSet = (exerciseId: string, slotIndex: number) => {
-    if (!prevWeek) return null;
-    const workoutLog = prevWeek.workoutLogs.find((w) => w.workoutId === activeWorkout.id);
-    const exerciseLog = workoutLog?.exerciseLogs.find((e) => e.exerciseId === exerciseId);
-    return exerciseLog?.sets.find((s) => s.slotIndex === slotIndex) ?? null;
-  };
+  // Último valor registrado do mesmo exercício (qualquer treino/semana/bloco anterior),
+  // exibido como placeholder. Vira valor real ao iniciar/finalizar a série ou ao
+  // digitar só um dos campos (ver App).
+  const getPrevSet = (exerciseId: string, slotIndex: number) =>
+    getPreviousSetValue(appState, appState.activeWeekIndex, activeWorkout.id, exerciseId, slotIndex);
 
   return (
     <div className="screen" key="workout">
@@ -643,6 +654,19 @@ function WorkoutScreen({
                     })}
                   </div>
 
+                  {/* COMENTÁRIO DA SEMANA */}
+                  <div className="exercise-comment">
+                    <label className="feedback-field">
+                      <span>Comentário da {appState.weeks[appState.activeWeekIndex]?.label ?? 'semana'}</span>
+                      <textarea
+                        rows={2}
+                        placeholder="Ex.: 2 anilhas de 10 por lado · série 2 pareceu mais difícil"
+                        value={log.comment ?? ''}
+                        onChange={(e) => onExerciseCommentChange(template.id, e.target.value)}
+                      />
+                    </label>
+                  </div>
+
                   {/* HISTÓRICO */}
                   <details className="history-accordion">
                     <summary>Ver histórico completo</summary>
@@ -694,6 +718,19 @@ function WorkoutScreen({
                           );
                         })}
                       </div>
+                      {(() => {
+                        const comments = collectExerciseComments(appState, template.name, visibleWeeks.length);
+                        return comments.length ? (
+                          <ul className="exercise-comment-history" aria-label={`Comentários de ${template.name}`}>
+                            {comments.map((entry) => (
+                              <li key={entry.key}>
+                                <strong>{entry.label}</strong>
+                                <p>{entry.comment}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null;
+                      })()}
                     </div>
                   </details>
                 </>
@@ -701,6 +738,15 @@ function WorkoutScreen({
             </article>
           );
         })}
+
+        <WorkoutExtras
+          extras={appState.weeks[appState.activeWeekIndex]?.workoutLogs.find((wl) => wl.workoutId === activeWorkout.id)?.extras}
+          getPreviousAccessorySet={getPreviousAccessorySet}
+          onAccessoryKindChange={onAccessoryKindChange}
+          onAccessoryNameChange={onAccessoryNameChange}
+          onAccessorySetChange={onAccessorySetChange}
+          onCardioChange={onCardioChange}
+        />
       </div>
 
       {/* DYNAMIC ISLAND — SET TIMER (count up) */}

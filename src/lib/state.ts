@@ -10,6 +10,9 @@ import type {
 } from '../types';
 import { MAX_WEEK_COUNT, normalizeFeedbackState } from '../data/feedback';
 
+/** Séries vermelhas do bloco Abdômen/Panturrilha (controle pessoal, fora da planilha). */
+export const ACCESSORY_SET_COUNT = 4;
+
 const parseNumber = (value: string): number | null => {
   const normalized = value.replace(',', '.').trim();
 

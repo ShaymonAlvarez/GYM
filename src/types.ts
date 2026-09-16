@@ -55,12 +55,30 @@ export type ExerciseLog = {
   exerciseId: string;
   sets: SetEntry[];
   summary: ExerciseSummary;
+  /** Comentário livre da semana para este exercício (não vai para a planilha). */
+  comment?: string;
+};
+
+export type AccessoryKind = 'abs' | 'calf';
+
+/** Blocos de controle pessoal no fim do treino — não vão para a planilha nem para os totais. */
+export type WorkoutExtras = {
+  accessory?: {
+    kind: AccessoryKind;
+    name: string;
+    sets: Array<{ load: string; reps: string }>;
+  };
+  cardio?: {
+    minutes: string;
+    description: string;
+  };
 };
 
 export type WorkoutLog = {
   workoutId: string;
   exerciseLogs: ExerciseLog[];
   durationSeconds?: number;
+  extras?: WorkoutExtras;
 };
 
 export type WeekLog = {

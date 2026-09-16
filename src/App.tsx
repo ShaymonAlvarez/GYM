@@ -25,6 +25,9 @@ import {
 } from './lib/state';
 import { buildSheetDisplayValues, exportWorkbookFile, exportWorkbookPdf } from './lib/workbook';
 import { parseWorkoutPdf } from './lib/pdfParser';
+import { fillSetFromPrevious, getPreviousAccessorySet, getPreviousSetValue } from './lib/previousValues';
+import { ACCESSORY_SET_COUNT } from './lib/state';
+import { WORKOUT_GROUP_COUNT, adaptSheetLayout, buildExerciseGroupLayout, getExerciseGroupLayout } from './lib/exerciseLayout';
 import {
   supabaseSingleton,
   hasSupabaseConfig,
@@ -35,9 +38,9 @@ import {
   hydrateRemotePhotoUrls
 } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry } from './types';
+import type { AppState, LocalMediaAsset, SheetLayout, ArchivedPeriod, SetEntry, WorkoutExtras } from './types';
 
-const workbookLayout = sheetLayout as SheetLayout;
+const baseWorkbookLayout = sheetLayout as SheetLayout;
 type SaveStatus = 'saved' | 'saving' | 'dirty';
 
 const getCompletion = (workoutLog: AppState['weeks'][number]['workoutLogs'][number]) => {
@@ -368,9 +371,14 @@ function App() {
     }
   }, [appState?.theme]);
 
+  const workbookLayout = useMemo(
+    () => (appState ? adaptSheetLayout(baseWorkbookLayout, getExerciseGroupLayout(appState.templates)) : baseWorkbookLayout),
+    [appState?.templates]
+  );
+
   const workbookCellValues = useMemo(
     () => (appState ? buildSheetDisplayValues(appState, workbookLayout, appState.activeWeekIndex) : {}),
-    [appState]
+    [appState, workbookLayout]
   );
 
   const updateState = (updater: (currentState: AppState) => AppState) => {
@@ -389,21 +397,19 @@ function App() {
         return;
       }
 
-      // Mapeia cada exercício para a linha absoluta correta da planilha modelo.
-      // A planilha tem grupos fixos separados por linha amarela:
-      // Treino 1 -> linhas 5-9, Treino 2 -> 11-15, Treino 3 -> 17-21, Treino 4 -> 23-27.
-      const EXERCISE_GROUP_START_ROWS = [5, 11, 17, 23];
-      const GROUP_CAPACITY = 5;
-      const templates = parsedTemplates
-        .slice(0, EXERCISE_GROUP_START_ROWS.length)
-        .map((template, workoutIndex) => ({
-          ...template,
-          exercises: template.exercises.slice(0, GROUP_CAPACITY).map((exercise, exerciseIndex) => ({
-            ...exercise,
-            ...lookupExerciseVideo(exercise.name),
-            rowNumber: EXERCISE_GROUP_START_ROWS[workoutIndex] + exerciseIndex
-          }))
-        }));
+      // Mapeia cada exercício para a linha absoluta da planilha. Cada treino ocupa um
+      // grupo separado por linha amarela (5 linhas por padrão: 5-9, 11-15, 17-21, 23-27);
+      // treinos com mais exercícios aumentam o grupo e deslocam os seguintes.
+      const workouts = parsedTemplates.slice(0, WORKOUT_GROUP_COUNT);
+      const groupLayout = buildExerciseGroupLayout(workouts.map((template) => template.exercises.length));
+      const templates = workouts.map((template, workoutIndex) => ({
+        ...template,
+        exercises: template.exercises.map((exercise, exerciseIndex) => ({
+          ...exercise,
+          ...lookupExerciseVideo(exercise.name),
+          rowNumber: groupLayout.groups[workoutIndex].startRow + exerciseIndex
+        }))
+      }));
 
       updateState((currentState) => {
         const archivedPeriod: ArchivedPeriod = {
@@ -643,9 +649,16 @@ function App() {
                   return exerciseLog;
                 }
 
-                const nextSets = exerciseLog.sets.map((setEntry) =>
-                  setEntry.slotIndex === slotIndex ? { ...setEntry, [field]: sanitizedValue } : setEntry
-                );
+                // Ao digitar um dos campos, o outro (se vazio) assume o valor anterior.
+                const otherField = field === 'load' ? 'reps' : 'load';
+                const previous = sanitizedValue
+                  ? getPreviousSetValue(currentState, currentState.activeWeekIndex, currentState.activeWorkoutId, exerciseId, slotIndex)
+                  : null;
+                const nextSets = exerciseLog.sets.map((setEntry) => {
+                  if (setEntry.slotIndex !== slotIndex) return setEntry;
+                  const updated = { ...setEntry, [field]: sanitizedValue };
+                  return previous && !updated[otherField].trim() ? { ...updated, [otherField]: previous[otherField] } : updated;
+                });
 
                 return {
                   ...exerciseLog,
@@ -671,11 +684,11 @@ function App() {
     });
   };
 
-  const updateFeedbackAnswer = (questionIndex: number, value: string) => {
+  const updateFeedbackAnswer = (answerIndex: number, value: string) => {
     updateState((currentState) => {
       const nextFeedback = normalizeFeedbackState(currentState.feedback, currentState.weeks.length);
 
-      nextFeedback.weeklyAnswers[currentState.activeWeekIndex][questionIndex] = value;
+      nextFeedback.weeklyAnswers[currentState.activeWeekIndex][answerIndex] = value;
 
       return {
         ...currentState,
@@ -721,13 +734,86 @@ function App() {
         week.index === currentState.activeWeekIndex
           ? {
               ...week,
-              workoutLogs: structuredClone(currentState.weeks[currentState.activeWeekIndex - 1].workoutLogs)
+              // Copia só as cargas: comentários da semana atual são preservados.
+              workoutLogs: structuredClone(currentState.weeks[currentState.activeWeekIndex - 1].workoutLogs).map((workoutLog) => {
+                const currentWorkoutLog = week.workoutLogs.find((log) => log.workoutId === workoutLog.workoutId);
+                return {
+                  ...workoutLog,
+                  // Abdômen/Panturrilha e Cardio da semana atual também são preservados.
+                  extras: currentWorkoutLog?.extras,
+                  exerciseLogs: workoutLog.exerciseLogs.map((exerciseLog) => {
+                    const currentComment = currentWorkoutLog?.exerciseLogs.find(
+                      (log) => log.exerciseId === exerciseLog.exerciseId
+                    )?.comment;
+                    return { ...exerciseLog, comment: currentComment };
+                  })
+                };
+              })
             }
           : week
       )
     }));
 
     setFlashMessage('Semana anterior copiada.');
+  };
+
+  const handleExerciseCommentChange = (exerciseId: string, value: string) => {
+    updateState((s) => ({
+      ...s,
+      weeks: s.weeks.map((week) => {
+        if (week.index !== s.activeWeekIndex) return week;
+        return {
+          ...week,
+          workoutLogs: week.workoutLogs.map((wl) => {
+            if (wl.workoutId !== s.activeWorkoutId) return wl;
+            return {
+              ...wl,
+              exerciseLogs: wl.exerciseLogs.map((el) => (el.exerciseId === exerciseId ? { ...el, comment: value } : el))
+            };
+          })
+        };
+      })
+    }));
+  };
+
+  // Atualiza os blocos Abdômen/Panturrilha e Cardio do treino ativo na semana ativa.
+  const updateActiveWorkoutExtras = (state: AppState, updater: (extras: WorkoutExtras) => WorkoutExtras): AppState => ({
+    ...state,
+    weeks: state.weeks.map((week) => {
+      if (week.index !== state.activeWeekIndex) return week;
+      return {
+        ...week,
+        workoutLogs: week.workoutLogs.map((wl) =>
+          wl.workoutId === state.activeWorkoutId ? { ...wl, extras: updater(wl.extras ?? {}) } : wl
+        )
+      };
+    })
+  });
+
+  const withAccessory = (extras: WorkoutExtras) => ({
+    kind: extras.accessory?.kind ?? ('abs' as const),
+    name: extras.accessory?.name ?? '',
+    sets: Array.from({ length: ACCESSORY_SET_COUNT }, (_, index) => extras.accessory?.sets[index] ?? { load: '', reps: '' })
+  });
+
+  const handleAccessorySetChange = (setIndex: number, field: 'load' | 'reps', value: string) => {
+    const sanitizedValue = sanitizeNumericInput(value);
+    updateState((s) =>
+      updateActiveWorkoutExtras(s, (extras) => {
+        const accessory = withAccessory(extras);
+        const otherField = field === 'load' ? 'reps' : 'load';
+        // Mesma regra das séries: ao digitar um campo, o outro (se vazio) assume o valor anterior.
+        const previous = sanitizedValue
+          ? getPreviousAccessorySet(s, s.activeWeekIndex, s.activeWorkoutId, accessory.kind, setIndex)
+          : null;
+        const sets = accessory.sets.map((set, index) => {
+          if (index !== setIndex) return set;
+          const updated = { ...set, [field]: sanitizedValue };
+          return previous && !updated[otherField].trim() ? { ...updated, [otherField]: previous[otherField] } : updated;
+        });
+        return { ...extras, accessory: { ...accessory, sets } };
+      })
+    );
   };
 
   const handleClearWeek = () => {
@@ -833,6 +919,18 @@ function App() {
     })
   });
 
+  // Torna reais os valores anteriores (antes só exibidos como placeholder) nos campos vazios da série.
+  const activatePreviousValues = (state: AppState, exerciseId: string, slotIndex: number): AppState => {
+    const previous = getPreviousSetValue(state, state.activeWeekIndex, state.activeWorkoutId, exerciseId, slotIndex);
+    const currentSet = state.weeks[state.activeWeekIndex]?.workoutLogs
+      .find((wl) => wl.workoutId === state.activeWorkoutId)
+      ?.exerciseLogs.find((el) => el.exerciseId === exerciseId)
+      ?.sets.find((set) => set.slotIndex === slotIndex);
+    if (!previous || !currentSet) return state;
+    const filled = fillSetFromPrevious(currentSet, previous);
+    return patchSet(state, exerciseId, slotIndex, { load: filled.load, reps: filled.reps });
+  };
+
   const handleWorkoutPauseToggle = () => {
     if (!workoutStartedAt || workoutEndedAt) return;
     if (workoutTimerPaused) {
@@ -917,6 +1015,7 @@ function App() {
         recordRestElapsed(restTimer);
         setRestTimer(null);
       }
+      updateState((s) => activatePreviousValues(s, exerciseId, slotIndex));
       setActiveSetTimer({ exerciseId, slotIndex, startedAt: Date.now(), accumulated: 0, paused: false });
     }
   };
@@ -927,7 +1026,7 @@ function App() {
     const totalSeconds = activeSetTimer.paused
       ? activeSetTimer.accumulated
       : activeSetTimer.accumulated + Math.floor((Date.now() - activeSetTimer.startedAt) / 1000);
-    updateState((s) => patchSet(s, exerciseId, slotIndex, { activeSeconds: totalSeconds }));
+    updateState((s) => activatePreviousValues(patchSet(s, exerciseId, slotIndex, { activeSeconds: totalSeconds }), exerciseId, slotIndex));
     setActiveSetTimer(null);
     // Use this set's own configured rest, falling back to the global default.
     const week = appState?.weeks[appState.activeWeekIndex];
@@ -1306,6 +1405,29 @@ function App() {
             onClearWeek={handleClearWeek}
             onClearExercise={handleClearExercise}
             onClearExerciseForWeek={handleClearExerciseForWeek}
+            onExerciseCommentChange={handleExerciseCommentChange}
+            getPreviousAccessorySet={(kind, setIndex) =>
+              getPreviousAccessorySet(appState, appState.activeWeekIndex, activeWorkout.id, kind, setIndex)
+            }
+            onAccessoryKindChange={(kind) =>
+              updateState((s) => updateActiveWorkoutExtras(s, (extras) => ({ ...extras, accessory: { ...withAccessory(extras), kind } })))
+            }
+            onAccessoryNameChange={(name) =>
+              updateState((s) => updateActiveWorkoutExtras(s, (extras) => ({ ...extras, accessory: { ...withAccessory(extras), name } })))
+            }
+            onAccessorySetChange={handleAccessorySetChange}
+            onCardioChange={(field, value) =>
+              updateState((s) =>
+                updateActiveWorkoutExtras(s, (extras) => ({
+                  ...extras,
+                  cardio: {
+                    minutes: extras.cardio?.minutes ?? '',
+                    description: extras.cardio?.description ?? '',
+                    [field]: field === 'minutes' ? value.replace(/[^0-9]/g, '') : value
+                  }
+                }))
+              )
+            }
           />
         );
 

@@ -3243,3 +3243,194 @@ a {
   margin-bottom: 2px;
 }
 
+
+/* ═══════════════════════════════════════════
+   COMENTÁRIO POR EXERCÍCIO
+   ═══════════════════════════════════════════ */
+
+.exercise-comment {
+  padding: 0 16px 16px;
+}
+
+.exercise-comment .feedback-field textarea {
+  min-height: 56px;
+}
+
+.exercise-comment-history {
+  list-style: none;
+  margin: 8px 16px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exercise-comment-history li {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.exercise-comment-history strong {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.exercise-comment-history p {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ═══════════════════════════════════════════
+   ABDÔMEN / PANTURRILHA E CARDIO (controle pessoal)
+   ═══════════════════════════════════════════ */
+
+.extras-card {
+  --workout-accent: var(--text-tertiary);
+}
+
+.extras-card__badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 0.64rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.extras-card__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 8px;
+}
+
+.extras-card__input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.extras-card__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.extras-card__minutes {
+  flex: 0 1 160px;
+}
+
+@media (max-width: 360px) {
+  .extras-card__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pergunta com várias opções (lista suspensa) */
+.feedback-select {
+  width: 136px;
+}
+
+.feedback-select .custom-select__trigger {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.feedback-card__footer .feedback-select {
+  flex: 1 1 auto;
+}
+
+/* ═══════════════════════════════════════════
+   FEEDBACK DO PERÍODO — mesmo formato da planilha
+   ═══════════════════════════════════════════ */
+
+.feedback-sheet-shell {
+  display: inline-block;
+  min-width: 100%;
+  padding: 12px;
+  background: #ffffff;
+  color: #000000;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.feedback-sheet__title {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.feedback-sheet {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.feedback-sheet th,
+.feedback-sheet td {
+  width: 110px;
+  height: 40px;
+  padding: 4px 6px;
+  border: 1px solid #a5a5a5;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.feedback-sheet thead th {
+  height: 24px;
+  background: #000000;
+  color: #ffffff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.feedback-sheet__photos {
+  color: #f5a623;
+}
+
+.feedback-sheet .feedback-sheet__corner,
+.feedback-sheet__question {
+  width: 220px;
+}
+
+.feedback-sheet__question {
+  background: #ffd977;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.feedback-sheet__answer {
+  background: #ffffff;
+}
+
+.feedback-sheet__answer--good {
+  background: #afe489;
+}
+
+.feedback-sheet__answer--neutral {
+  background: #fffc98;
+}
+
+.feedback-sheet__answer--bad {
+  background: #ff9781;
+}

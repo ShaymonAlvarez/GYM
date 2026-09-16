@@ -3,13 +3,7 @@ import type { AppState } from '../types';
 import type { FeedbackState } from '../types';
 import CustomSelect from './CustomSelect';
 import { getVisibleWeeks } from '../lib/state';
-
-type FeedbackQuestion = {
-  rowNumber: number;
-  text: string;
-  fullText?: string;
-  options: string[];
-};
+import type { FeedbackQuestion } from '../data/feedback';
 
 type FeedbackScreenProps = {
   appState: AppState;
@@ -17,7 +11,7 @@ type FeedbackScreenProps = {
   activeFeedbackAnswers: string[];
   weeklyComment: string;
   feedbackState: FeedbackState;
-  onAnswerChange: (questionIndex: number, value: string) => void;
+  onAnswerChange: (answerIndex: number, value: string) => void;
   onCommentChange: (value: string) => void;
   onPhotoNoteChange: (value: string) => void;
   onWeekChange: (index: number) => void;
@@ -150,17 +144,28 @@ function FeedbackScreen({
             const isOpen = expanded.has(questionIndex);
             const reversedOptions = [...question.options].reverse();
 
-            const btns = reversedOptions.map((option, revIdx) => {
+            const answer = activeFeedbackAnswers[question.answerIndex] ?? '';
+            const btns = question.input === 'select'
+              ? (
+                <CustomSelect
+                  className="feedback-select"
+                  value={answer}
+                  placeholder="Selecione"
+                  onChange={(value) => onAnswerChange(question.answerIndex, value)}
+                  options={question.options.map((option) => ({ value: option, label: option }))}
+                />
+              )
+              : reversedOptions.map((option, revIdx) => {
               const originalIdx = question.options.length - 1 - revIdx;
               const kind = getBtnKind(originalIdx, question.options.length);
-              const isSelected = activeFeedbackAnswers[questionIndex] === option;
+              const isSelected = answer === option;
               return (
                 <button
                   key={option}
                   type="button"
                   title={option}
                   className={`feedback-opt-btn feedback-opt-btn--${kind}${isSelected ? ' feedback-opt-btn--sel' : ''}`}
-                  onClick={() => onAnswerChange(questionIndex, option)}
+                  onClick={() => onAnswerChange(question.answerIndex, option)}
                 >
                   <BtnIcon kind={kind} total={question.options.length} />
                 </button>
