@@ -5,6 +5,7 @@ import ScrollPicker from './ScrollPicker';
 import WorkoutExtras from './WorkoutExtras';
 import { getVisibleWeeks } from '../lib/state';
 import { collectExerciseComments, getPreviousSetValue } from '../lib/previousValues';
+import { lookupExerciseVideo } from '../data/exerciseCatalog';
 import type { PreviousSetValue } from '../lib/previousValues';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -490,6 +491,9 @@ function WorkoutScreen({
           if (!log) return null;
 
           const isExpanded = expandedExercises[template.id] ?? false;
+          // Programas importados antes do catálogo completo não têm link salvo:
+          // nesse caso o vídeo é procurado pelo nome do exercício.
+          const videoUrl = template.videoUrl ?? lookupExerciseVideo(template.name).videoUrl;
 
           return (
             <article key={template.id} className="exercise-card">
@@ -530,8 +534,8 @@ function WorkoutScreen({
                   >
                     <ResetIcon />
                   </button>
-                  {template.videoUrl ? (
-                    <a className="video-link" href={template.videoUrl} rel="noreferrer" target="_blank">
+                  {videoUrl ? (
+                    <a className="video-link" href={videoUrl} rel="noreferrer" target="_blank">
                       Vídeo
                     </a>
                   ) : null}
